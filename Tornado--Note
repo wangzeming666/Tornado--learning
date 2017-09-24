@@ -132,9 +132,9 @@ write_error方法在你的RequestHandler类中。例子如下，
             def write_error(self, status_code, **kwargs):
                 self.write("Gosh darnit, user! You caused a %d error." % status_code)
                 
-            if __name__ == "__main__":
-                tornado.options.parse_command_line()
-                app = tornado.web.Application(handlers=[(r"/", IndexHandler)])
-                http_server = tornado.httpserver.HTTPServer(app)
-                http_server.listen(options.port)
-                tornadoo.ioloop.IOLoop.instance().start()
+        if __name__ == "__main__":
+            tornado.options.parse_command_line()
+            app = tornado.web.Application(handlers=[(r"/", IndexHandler)])
+            http_server = tornado.httpserver.HTTPServer(app)
+            http_server.listen(options.port)
+            tornadoo.ioloop.IOLoop.instance().start()
