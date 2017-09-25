@@ -301,3 +301,55 @@ body {
 在这个例子中，你可能注意到了debug=True的使用。它调用了一个便利的测试模式：tornado.autoreload模块，
 此时，一旦主要的Python文件被修改，Tornado将会尝试重启服务器，并且在模板改变时会进行刷新。
 对于快速改变和实时更新这非常棒，但不要再生产上使用它，因为它将防止Tornado缓存模板！
+
+
+当编写Web应用时，你总希望提供像样式表、JavaScript文件和图像这样不需要为每个文件编写独立处理函数的"静态内容"。
+Tornado提供了几个有用的捷径来使其变得容易。
+
+你可以通过向Application类的构造函数传递一个名为static_path的参数来告诉Tornado从文件系统的一个特定位置提供静态文件。
+Alpha Munger中的相关代码片段如下：
+
+app = tornado.web.Application(
+    handlers=[(r'/', IndexHandler), (r'/poem', MungedPageHandler)],
+    template_path=os.path.join(os.path.dirname(__file__), "templates"),
+    static_path=os.path.join(os.path.dirname(__file__), "static"),
+    debug=True
+)
+
+
+Tornado模板模块提供了一个叫作static_url的函数来生成static目录下文件的URL。让我们来看看在index.html中static_url的调用的示例代码：
+
+<link rel="stylesheet" href="{{ static_url("style.css") }}">
+这个对static_url的调用生成了URL的值，并渲染输出类似下面的代码：
+
+<link rel="stylesheet" href="/static/style.css?v=ab12">
+那么为什么使用static_url而不是在你的模板中硬编码呢？有如下几个原因。
+其一，static_url函数创建了一个基于文件内容的hash值，并将其添加到URL末尾（查询字符串的参数v）。
+这个hash值确保浏览器总是加载一个文件的最新版而不是之前的缓存版本。
+无论是在你应用的开发阶段，还是在部署到生产环境使用时，都非常有用，因为你的用户不必再为了看到你的静态内容而清除浏览器缓存了。
+
+另一个好处是你可以改变你应用URL的结构，而不需要改变模板中的代码。
+例如，你可以配置Tornado响应来自像路径/s/filename.ext的请求时提供静态内容，而不是默认的/static路径。
+如果你使用static_url而不是硬编码的话，你的代码不需要改变。比如说，你想把静态资源从我们刚才使用的/static目录移到新的/s目录。
+你可以简单地改变静态路径由static变为s，然后每个使用static_url包裹的引用都会被自动更新。
+如果你在每个引用静态资源的文件中硬编码静态路径部分，你将不得不手动修改每个模板。
+
+
+Tornado模板模块提供了一个叫作static_url的函数来生成static目录下文件的URL。让我们来看看在index.html中static_url的调用的示例代码：
+
+<link rel="stylesheet" href="{{ static_url("style.css") }}">
+这个对static_url的调用生成了URL的值，并渲染输出类似下面的代码：
+
+<link rel="stylesheet" href="/static/style.css?v=ab12">
+那么为什么使用static_url而不是在你的模板中硬编码呢？有如下几个原因。
+其一，static_url函数创建了一个基于文件内容的hash值，并将其添加到URL末尾（查询字符串的参数v）。
+这个hash值确保浏览器总是加载一个文件的最新版而不是之前的缓存版本。
+无论是在你应用的开发阶段，还是在部署到生产环境使用时，都非常有用，因为你的用户不必再为了看到你的静态内容而清除浏览器缓存了。
+
+另一个好处是你可以改变你应用URL的结构，而不需要改变模板中的代码。
+例如，你可以配置Tornado响应来自像路径/s/filename.ext的请求时提供静态内容，而不是默认的/static路径。
+如果你使用static_url而不是硬编码的话，你的代码不需要改变。比如说，你想把静态资源从我们刚才使用的/static目录移到新的/s目录。
+你可以简单地改变静态路径由static变为s，然后每个使用static_url包裹的引用都会被自动更新。
+如果你在每个引用静态资源的文件中硬编码静态路径部分，你将不得不手动修改每个模板。
+
+
