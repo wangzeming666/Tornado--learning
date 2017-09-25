@@ -1,4 +1,4 @@
-简单示例：Poem Maker Pro¶
+简单示例：Poem Maker Pro
 
 让我们以一个叫作Poem Maker Pro的简单例子开始。Poem Maker Pro这个Web应用有一个让用户填写的HTML表单，然后处理表单的结果。
 
@@ -97,7 +97,7 @@ eggs
 0, 1, 4, 9, 16, 25, 36, 49, 64, 81
 
 
-控制流语句¶
+控制流语句
 
 你同样可以在Tornado模板中使用Python条件和循环语句。控制语句以{%和%}包围，并以类似下面的形式被使用：
 
@@ -170,3 +170,14 @@ Tornado 在所有模板中提供了一些便利的函数，他们包括：
             
 在Tornado 1.x中，模版不是被自动转义的。在Tornado 2.0中，模板被默认为自动转义（并且可以在Application构造函数中使用autoscaping=None关闭）。
 在不同版本的迁移时要注意向后兼容。            
+
+
+在模板中使用一个你自己编写的函数也是很简单的：只需要将函数名作为模板的参数传递即可，就像其他变量一样。
+>>> from tornado.template import Template
+>>> def disemvowel(s):
+...     return ''.join([x for x in s if x not in 'aeiou'])
+...
+>>> disemvowel("george")
+'grg'
+>>> print Template("my name is {{d('mortimer')}}").generate(d=disemvowel)
+my name is mrtmr
