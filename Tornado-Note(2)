@@ -181,3 +181,123 @@ Tornado 在所有模板中提供了一些便利的函数，他们包括：
 'grg'
 >>> print Template("my name is {{d('mortimer')}}").generate(d=disemvowel)
 my name is mrtmr
+
+
+
+
+复杂示例：The Alpha Munger
+
+在代码清单2-4中，我们把在这一章中谈论过的所有东西都放了进来。这个应用被称为The Alpha Munger。用户输入两个文本：
+一个"源"文本和一个"替代"文本。应用会返回替代文本的一个副本，并将其中每个单词替换成源文本中首字母相同的某个单词。
+图2-3展示了要填的表单，图2-4展示了结果文本。
+
+这个应用包括四个文件：main.py（Tornado程序）、style.css（CSS样式表文件）、index.html和munged.html（Tornado模板）。让我们看看代码吧：
+
+代码清单2-4 复杂表单和模板：main.py
+import os.path
+import random
+
+import tornado.httpserver
+import tornado.ioloop
+import tornado.options
+import tornado.web
+
+from tornado.options import define, options
+define("port", default=8000, help="run on the given port", type=int)
+
+class IndexHandler(tornado.web.RequestHandler):
+    def get(self):
+        self.render('index.html')
+
+class MungedPageHandler(tornado.web.RequestHandler):
+    def map_by_first_letter(self, text):
+        mapped = dict()
+        for line in text.split('\r\n'):
+            for word in [x for x in line.split(' ') if len(x) > 0]:
+                if word[0] not in mapped: mapped[word[0]] = []
+                mapped[word[0]].append(word)
+        return mapped
+
+    def post(self):
+        source_text = self.get_argument('source')
+        text_to_change = self.get_argument('change')
+        source_map = self.map_by_first_letter(source_text)
+        change_lines = text_to_change.split('\r\n')
+        self.render('munged.html', source_map=source_map, change_lines=change_lines,
+                choice=random.choice)
+
+if __name__ == '__main__':
+    tornado.options.parse_command_line()
+    app = tornado.web.Application(
+        handlers=[(r'/', IndexHandler), (r'/poem', MungedPageHandler)],
+        template_path=os.path.join(os.path.dirname(__file__), "templates"),
+        static_path=os.path.join(os.path.dirname(__file__), "static"),
+        debug=True
+    )
+    http_server = tornado.httpserver.HTTPServer(app)
+    http_server.listen(options.port)
+    tornado.ioloop.IOLoop.instance().start()
+
+
+记住Application构造函数中的static_path参数。我们将在下面进行详细的介绍，
+但是现在你所需要知道的就是static_path参数指定了你应用程序放置静态资源（如图像、CSS文件、JavaScript文件等）的目录。
+另外，你还需要在templates文件夹下添加index.html和munged.html这两个文件。
+
+代码清单2-5 Alpha Munger表单：index.html
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="stylesheet" href="{{ static_url("style.css") }}">
+        <title>The Alpha Munger</title>
+    </head>
+    <body>
+        <h1>The Alpha Munger</h1>
+        <p>Enter two texts below. The replacement text will have its words
+            replaced by words beginning with the same letter in the source text.</p>
+        <form method="post" action="/poem">
+        <p>Source text<br>
+            <textarea rows=4 cols=55 name="source"></textarea></p>
+        <p>Text for replacement<br>
+            <textarea rows=4 cols=55 name="change"></textarea></p>
+        <input type="submit">
+        </form>
+    </body>
+</html>
+代码清单2-6 Alpha Munger模板：munged.html
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="stylesheet" href="{{ static_url("style.css") }}">
+        <title>The Alpha Munger</title>
+    </head>
+    <body>
+        <h1>Your text</h1>
+        <p>
+{% for line in change_lines %}
+    {% for word in line.split(' ') %}
+        {% if len(word) > 0 and word[0] in source_map %}
+            <span class="replaced"
+                    title="{{word}}">{{ choice(source_map[word[0]]) }}</span>
+        {% else %}
+            <span class="unchanged" title="unchanged">{{word}}</span>
+        {% end %}
+    {% end %}
+            <br>
+{% end %}
+        </p>
+    </body>
+</html>
+最后，将代码清单2-7中的内容写到static子目录下的style.css文件中。
+
+代码清单2-7 Alpha Munger样式表：style.css
+body {
+    font-family: Helvetica,Arial,sans-serif;
+    width: 600px;
+    margin: 0 auto;
+}
+.replaced:hover { color: #00f; }
+
+
+在这个例子中，你可能注意到了debug=True的使用。它调用了一个便利的测试模式：tornado.autoreload模块，
+此时，一旦主要的Python文件被修改，Tornado将会尝试重启服务器，并且在模板改变时会进行刷新。
+对于快速改变和实时更新这非常棒，但不要再生产上使用它，因为它将防止Tornado缓存模板！
