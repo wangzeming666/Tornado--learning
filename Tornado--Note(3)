@@ -225,3 +225,57 @@ Totally hacked your site lulz &lt;script&gt;alert('RUNNING EVIL H4CKS AND SPL01T
 {% end %}
 这样，你可以既利用linkify()简记的好处，又可以保持在其他地方自动转义的好处。
 
+
+ UI模块
+
+正如前面我们所看到的，模板系统既轻量级又强大。在实践中，我们希望遵循软件工程的谚语，Don't Repeat Yourself。
+为了消除冗余的代码，我们可以使模板部分模块化。比如，展示物品列表的页面可以定位一个单独的模板用来渲染每个物品的标记。
+另外，一组共用通用导航结构的页面可以从一个共享的模块渲染内容。Tornado的UI模块在这种情况下特别有用
+
+UI模块是封装模板中包含的标记、样式以及行为的可复用组件。它所定义的元素通常用于多个模板交叉复用或在同一个模板中重复使用。
+模块本身是一个继承自Tornado的UIModule类的简单Python类，并定义了一个render方法。
+当一个模板使用{% module Foo(...) %}标签引用一个模块时，Tornado的模板引擎调用模块的render方法，然后返回一个字符串来替换模板中的模块标签。
+UI模块也可以在渲染后的页面中嵌入自己的JavaScript和CSS文件，或指定额外包含的JavaScript或CSS文件。
+你可以定义可选的embedded_javascript、embedded_css、javascript_files和css_files方法来实现这一方法。
+
+
+为了在你的模板中引用模块，你必须在应用的设置中声明它。ui_modules参数期望一个模块名为键、类为值的字典输入来渲染它们。
+import tornado.web
+import tornado.httpserver
+import tornado.ioloop
+import tornado.options
+import os.path
+
+from tornado.options import define, options
+define("port", default=8000, help="run on the given port", type=int)
+
+class HelloHandler(tornado.web.RequestHandler):
+    def get(self):
+        self.render('hello.html')
+
+class HelloModule(tornado.web.UIModule):
+    def render(self):
+        return '<h1>Hello, world!</h1>'
+
+if __name__ == '__main__':
+    tornado.options.parse_command_line()
+    app = tornado.web.Application(
+        handlers=[(r'/', HelloHandler)],
+        template_path=os.path.join(os.path.dirname(__file__), 'templates'),
+        ui_modules={'Hello': HelloModule}
+    )
+    server = tornado.httpserver.HTTPServer(app)
+    server.listen(options.port)
+    tornado.ioloop.IOLoop.instance().start()
+这个例子中ui_module字典里只有一项，它把到名为Hello的模块的引用和我们定义的HelloModule类结合了起来。
+
+现在，当调用HelloHandler并渲染hello.html时，我们可以使用{% module Hello() %}模板标签来包含HelloModule类中render方法返回的字符串。
+
+<html>
+    <head><title>UI Module Example</title></head>
+    <body>
+        {% module Hello() %}
+    </body>
+</html>
+这个hello.html模板通过在模块标签自身的位置调用HelloModule返回的字符串进行填充。
+下面的例子将会展示如何扩展UI模块来渲染它们自己的模板并包含脚本和样式表。
