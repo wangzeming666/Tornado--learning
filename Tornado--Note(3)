@@ -262,7 +262,53 @@ if __name__ == '__main__':
     app = tornado.web.Application(
         handlers=[(r'/', HelloHandler)],
         template_path=os.path.join(os.path.dirname(__file__), 'templates'),
-        ui_modules={'Hello': HelloModule}
+        ui_modu很多时候，一个非常有用的做法是让模块指向一个模板文件而不是在模块类中直接渲染字符串。
+        这些模板的标记看起来就像我们已经看到过的作为整体的模板。
+
+UI模块的一个常见应用是迭代数据库或API查询中获得的结果，为每个独立项目的数据渲染相同的标记。
+比如，Burt想在Burt's Book里创建一个推荐阅读部分，他已经创建了一个名为recommended.html的模板，其代码如下所示。
+就像前面看到的那样，我们将使用{% module Book(book) %}标签调用模块。
+
+{% extends "main.html" %}
+
+{% block body %}
+<h2>Recommended Reading</h2>
+    {% for book in books %}
+        {% module Book(book) %}
+    {% end %}
+{% end %}
+Burt还创建了一个叫作book.html的图书模块的模板，并把它放到了templates/modules目录下。一个简单的图书模板看起来像下面这样：
+
+<div class="book">
+    <h3 class="book_title">{{ book["title"] }}</h3>
+    <img src="{{ book["image"] }}" class="book_image"/>
+</div>
+现在，当我们定义BookModule类的时候，我们将调用继承自UIModule的render_string方法。
+这个方法显式地渲染模板文件，当我们返回给调用者时将其关键字参数作为一个字符串。
+
+class BookModule(tornado.web.UIModule):
+    def render(self, book):
+        return self.render_string('modules/book.html', book=book)
+在完整的例子中，我们将使用下面的模板来格式化每个推荐书籍的所有属性，代替先前的book.html
+
+<div class="book">
+    <h3 class="book_title">{{ book["title"] }}</h3>
+    {% if book["subtitle"] != "" %}
+        <h4 class="book_subtitle">{{ book["subtitle"] }}</h4>
+    {% end %}
+    <img src="{{ book["image"] }}" class="book_image"/>
+    <div class="book_details">
+        <div class="book_date_released">Released: {{ book["date_released"]}}</div>
+        <div class="book_date_added">
+            Added: {{ locale.format_date(book["date_added"], relative=False) }}
+        </div>
+        <h5>Description:</h5>
+        <div class="book_body">{% raw book["description"] %}</div>
+    </div>
+</div>
+使用这个布局，传递给recommended.html模板的books参数的每项都将会调用这个模块。
+每次使用一个新的book参数调用Book模块时，模块（以及book.html模板）可以引用book参数的字典中的项，
+并以适合的方式格式化数据les={'Hello': HelloModule}
     )
     server = tornado.httpserver.HTTPServer(app)
     server.listen(options.port)
@@ -279,3 +325,49 @@ if __name__ == '__main__':
 </html>
 这个hello.html模板通过在模块标签自身的位置调用HelloModule返回的字符串进行填充。
 下面的例子将会展示如何扩展UI模块来渲染它们自己的模板并包含脚本和样式表。
+
+很多时候，一个非常有用的做法是让模块指向一个模板文件而不是在模块类中直接渲染字符串。这些模板的标记看起来就像我们已经看到过的作为整体的模板。
+
+UI模块的一个常见应用是迭代数据库或API查询中获得的结果，为每个独立项目的数据渲染相同的标记。
+比如，Burt想在Burt's Book里创建一个推荐阅读部分，他已经创建了一个名为recommended.html的模板，其代码如下所示。
+就像前面看到的那样，我们将使用{% module Book(book) %}标签调用模块。
+
+{% extends "main.html" %}
+
+{% block body %}
+<h2>Recommended Reading</h2>
+    {% for book in books %}
+        {% module Book(book) %}
+    {% end %}
+{% end %}
+Burt还创建了一个叫作book.html的图书模块的模板，并把它放到了templates/modules目录下。一个简单的图书模板看起来像下面这样：
+
+<div class="book">
+    <h3 class="book_title">{{ book["title"] }}</h3>
+    <img src="{{ book["image"] }}" class="book_image"/>
+</div>
+现在，当我们定义BookModule类的时候，我们将调用继承自UIModule的render_string方法。
+这个方法显式地渲染模板文件，当我们返回给调用者时将其关键字参数作为一个字符串。
+
+class BookModule(tornado.web.UIModule):
+    def render(self, book):
+        return self.render_string('modules/book.html', book=book)
+在完整的例子中，我们将使用下面的模板来格式化每个推荐书籍的所有属性，代替先前的book.html
+
+<div class="book">
+    <h3 class="book_title">{{ book["title"] }}</h3>
+    {% if book["subtitle"] != "" %}
+        <h4 class="book_subtitle">{{ book["subtitle"] }}</h4>
+    {% end %}
+    <img src="{{ book["image"] }}" class="book_image"/>
+    <div class="book_details">
+        <div class="book_date_released">Released: {{ book["date_released"]}}</div>
+        <div class="book_date_added">
+            Added: {{ locale.format_date(book["date_added"], relative=False) }}
+        </div>
+        <h5>Description:</h5>
+        <div class="book_body">{% raw book["description"] %}</div>
+    </div>
+</div>
+使用这个布局，传递给recommended.html模板的books参数的每项都将会调用这个模块。
+每次使用一个新的book参数调用Book模块时，模块（以及book.html模板）可以引用book参数的字典中的项，并以适合的方式格式化数据
