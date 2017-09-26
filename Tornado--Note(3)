@@ -405,97 +405,6 @@ class RecommendedHandler(tornado.web.RequestHandler):
 在这个例子中，你可能已经注意到了locale.format_date()的使用。
 它调用了tornado.locale模块提供的日期处理方法，这个模块本身是一组i18n方法的集合。
 format_date()选项默认格式化GMT Unix时间戳为XX time ago，并且可以向下面这样使用：
-嵌入JavaScript和CSS¶
-
-为了给这些模块提供更高的灵活性，Tornado允许你使用embedded_css和embedded_javascript方法嵌入其他的CSS和JavaScript文件。
-举个例子，如果你想在调用模块时给DOM添加一行文字，你可以通过从模块中嵌入JavaScript来做到：
-
-class BookModule(tornado.web.UIModule):
-    def render(self, book):
-        return self.render_string(
-            "modules/book.html",
-            book=book,
-        )
-
-    def embedded_javascript(self):
-        return "document.write(\"hi!\")"
-当调用模块时，document.write(\"hi!\")将被<script>包围，并被插入到<body>的闭标签中：
-
-<script type="text/javascript">
-//<![CDATA[
-document.write("hi!")
-//]]>
-</script>
-显然，只是在文档主体中写这些内容并不是世界上最有用的事情，而我们还有另一个给予你极大灵活性的选项，当创建这些模块时，
-可以在每个模块中包含JavaScript文件。
-
-类似的，你也可以把只在这些模块被调用时加载的额外的CSS规则放进来：
-
-def embedded_css(self):
-    return ".book {background-color:#F5F5F5}"
-在这种情况下，.book {background-color:#555}这条CSS规则被包裹在<style>中，并被直接添加到<head>的闭标签之前。
-
-<style type="text/css">
-.book {background-color:#F5F5F5}
-</style>
-更加灵活的是，你甚至可以简单地使用html_body()来在闭合的</body>标签前添加完整的HTML标记：
-
-def html_body(self):
-    return "<script>document.write(\"Hello!\")</script>"
-显然，虽然直接内嵌添加脚本和样式表很有用，但是为了更严谨的包含（以及更整洁的代码！），添加样式表和脚本文件会显得更好。
-他们的工作方式基本相同，所以你可以使用javascript_files()和css_files()来包含完整的文件，不论是本地的还是外部的。
-
-比如，你可以添加一个额外的本地CSS文件如下：
-
-def css_files(self):
-    return "/static/css/newreleases.css"
-或者你可以取得一个外部的JavaScript文件：
-
-def javascript_files(self):
-    return "https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.14/jquery-ui.min.js"
-当一个模块需要额外的库而应用的其他地方不是必需的时候，这种方式非常有用。
-比如，你有一个使用JQuery UI库的模块（而在应用的其他地方都不会被使用），你可以只在这个样本模块中加载jquery-ui.min.js文件，
-减少那些不需要它的页面的加载时间。
-
-因为模块的内嵌JavaScript和内嵌HTML函数的目标都是紧邻</body>标签，
-html_body()、javascript_files()和embedded_javascript()都会将内容渲染后插到页面底部，那么它们出现的顺序正好是你指定它们的顺序的倒序。
-
-如果你有一个模块如下面的代码所示：
-
-class SampleModule(tornado.web.UIModule):
-    def render(self, sample):
-        return self.render_string(
-            "modules/sample.html",
-            sample=sample
-        )
-
-    def html_body(self):
-        return "<div class=\"addition\"><p>html_body()</p></div>"
-
-    def embedded_javascript(self):
-        return "document.write(\"<p>embedded_javascript()</p>\")"
-
-    def embedded_css(self):
-        return ".addition {color: #A1CAF1}"
-
-    def css_files(self):
-        return "/static/css/sample.css"
-
-    def javascript_files(self):
-        return "/static/js/sample.js"
-html_body()最先被编写，它紧挨着出现在</body>标签的上面。embedded_javascript()接着被渲染，最后是javascript_files()。
-你可以在图3-7中看到它是如何工作的。
-
-需要小心的是，你不能包括一个需要其他地方东西的方法（比如依赖其他文件的JavaScript函数），因为此时他们可能会按照和你期望不同的顺序进行渲染。
-
-总之，模块允许你在模板中渲染格式化数据时非常灵活，同时也让你能够只在调用模块时包含指定的一些额外的样式和函数规则。
-
-3.3 总结¶
-
-正如我们之前看到的，Tornado使扩展模板更容易，以便你的网站代码可以在整个应用中轻松复用。
-而使用模块后，你可以在什么文件、样式和脚本动作需要被包括进来这个问题上拥有更细粒度的决策。
-然而，我们的例子依赖于使用Python原生数据结构时是否简单，在你的实际应用中硬编码大数据结构的感觉可不好。
-下一步，我们将看到如何配合持久化存储来处理存储、提供和编辑动态内容。
 {{ locale.format_date(book["date"]) }}
 
 relative=False将使其返回一个绝对时间（包含小时和分钟），而full_format=True选项将会展示一个包含月、日、年和时间的完整日期
@@ -504,7 +413,7 @@ relative=False将使其返回一个绝对时间（包含小时和分钟），而
 这个模块在你处理时间和日期时非常有用，并且还提供了处理本地化字符串的支持。
 
 
-嵌入JavaScript和CSS¶
+嵌入JavaScript和CSS
 
 为了给这些模块提供更高的灵活性，Tornado允许你使用embedded_css和embedded_javascript方法嵌入其他的CSS和JavaScript文件。
 举个例子，如果你想在调用模块时给DOM添加一行文字，你可以通过从模块中嵌入JavaScript来做到：
