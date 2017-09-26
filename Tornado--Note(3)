@@ -8,3 +8,220 @@
 
 {% extends "main.html" %}
 这就使得新文件继承main.html的所有标签，并且覆写为期望的内容。
+
+扩展一个模板使你复用之前写过的代码更加简单，但是这并不会为你提供所有的东西，除非你可以适应并改变那些之前的模板。所以，block语句出现了。
+
+一个块语句压缩了一些当你扩展时可能想要改变的模板元素。比如，为了使用一个能够根据不同页覆写的动态header块，你可以在父模板main.html中添加如下代码：
+
+<header>
+    {% block header %}{% end %}
+</header>
+然后，为了在子模板index.html中覆写{% block header %}{% end %}部分，你可以使用块的名字引用，并把任何你想要的内容放到其中。
+
+{% block header %}{% end %}
+
+{% block header %}
+    <h1>Hello world!</h1>
+{% end %}
+任何继承这个模板的文件都可以包含它自己的{% block header %}和{% end %}，然后把一些不同的东西加进去。
+
+为了在Web应用中调用这个子模板，你可以在你的Python脚本中很轻松地渲染它，就像之前你渲染其他模板那样：
+
+class MainHandler(tornado.web.RequestHandler):
+    def get(self):
+        self.render("index.html")
+所以此时，main.html中的body块在加载时会被以index.html中的信息"Hello world!"填充
+
+下面是一个在父模板main.html中使用多个块的例子：
+
+<html>
+<body>
+    <header>
+        {% block header %}{% end %}
+    </header>
+    <content>
+        {% block body %}{% end %}
+    </content>
+    <footer>
+        {% block footer %}{% end %}
+    </footer>
+</body>
+</html>
+当我们扩展父模板main.html时，可以在子模板index.html中引用这些块。
+
+{% extends "main.html" %}
+
+{% block header %}
+    <h1>{{ header_text }}</h1>
+{% end %}
+
+{% block body %}
+    <p>Hello from the child template!</p>
+{% end %}
+
+{% block footer %}
+    <p>{{ footer_text }}</p>
+{% end %}
+
+用来加载模板的Python脚本和上一个例子差不多，不过在这里我们传递了几个字符串变量给模板使用
+
+class MainHandler(tornado.web.RequestHandler):
+    def get(self):
+        self.render(
+            "index.html",
+            header_text = "Header goes here",
+            footer_text = "Footer goes here"
+        )
+        
+        
+你也可以保留父模板块语句中的默认文本和标记，就像扩展模板没有指定它自己的块版本一样被渲染。
+这种情况下，你可以根据某页的情况只替换必须的东西，这在包含或替换脚本、CSS文件和标记块时非常有用。
+
+一个语法错误或者没有闭合的{% block %}语句可以使得浏览器直接显示500: Internal Server Error（如果你运行在debug模式下会引发完整的Python堆栈跟踪）。
+你需要使自己的模板尽可能的鲁棒，并且在模板被渲染之前发现错误。
+
+模板练习：
+Burt's Book使用了以Tornado为基础的网站，其中包括一个拥有样式、布局和header/footer细节的主模版，以及一个处理页面的轻量级的子模板。
+在这个系统中，Burt可以把最新发布、员工推荐、即将发行等不同页面编写在一起，共同使用通用的基础属性。
+
+Burt's Book的网站使用一个叫作main.html的主要基础模板，用来包含网站的通用架构，如下面的代码所示：
+
+<html>
+<head>
+    <title>{{ page_title }}</title>
+    <link rel="stylesheet" href="{{ static_url("css/style.css") }}" />
+</head>
+<body>
+    <div id="container">
+        <header>
+            {% block header %}<h1>Burt's Books</h1>{% end %}
+        </header>
+        <div id="main">
+            <div id="content">
+                {% block body %}{% end %}
+            </div>
+        </div>
+        <footer>
+            {% block footer %}
+                <p>
+    For more information about our selection, hours or events, please email us at
+    <a href="mailto:contact@burtsbooks.com">contact@burtsbooks.com</a>.
+                </p>
+            {% end %}
+        </footer>
+    </div>
+    <script src="{{ static_url("js/script.js") }}"></script>
+    </body>
+</html>
+这个页面定义了结构，应用了一个CSS样式表，并加载了主要的JavaScript文件。其他模板可以扩展它，在必要时替换header、body和footer块。
+
+这个网站的index页（index.html）欢迎友好的网站访问者并提供一些商店的信息。
+通过扩展main.html，这个文件只需要包括用于替换默认文本的header和body块的信息。
+
+{% extends "main.html" %}
+
+{% block header %}
+    <h1>{{ header_text }}</h1>
+{% end %}
+
+{% block body %}
+    <div id="hello">
+        <p>Welcome to Burt's Books!</p>
+        <p>...</p>
+    </div>
+{% end %}
+在footer块中，这个文件使用了Tornado模板的默认行为，继承了来自父模板的联系信息。
+
+为了运作网站，传递信息给index模板，下面给出Burt's Book的Python脚本（main.py）：
+
+import tornado.web
+import tornado.httpserver
+import tornado.ioloop
+import tornado.options
+import os.path
+
+from tornado.options import define, options
+define("port", default=8000, help="run on the given port", type=int)
+
+class Application(tornado.web.Application):
+    def __init__(self):
+        handlers = [
+            (r"/", MainHandler),
+        ]
+        settings = dict(
+            template_path=os.path.join(os.path.dirname(__file__), "templates"),
+            static_path=os.path.join(os.path.dirname(__file__), "static"),
+            debug=True,
+        )
+        tornado.web.Application.__init__(self, handlers, **settings)
+
+class MainHandler(tornado.web.RequestHandler):
+    def get(self):
+        self.render(
+            "index.html",
+            page_title = "Burt's Books | Home",
+            header_text = "Welcome to Burt's Books!",
+        )
+
+if __name__ == "__main__":
+    tornado.options.parse_command_line()
+    http_server = tornado.httpserver.HTTPServer(Application())
+    http_server.listen(options.port)
+    tornado.ioloop.IOLoop.instance().start()
+    
+    
+我们不再像之前那样通过使用一个处理类列表和一些其他关键字参数调用tornado.web.Application的构造函数来创建实例，
+而是定义了我们自己的Application子类，在这里我们简单地称之为Application。
+在我们定义的__init__方法中，我们创建了处理类列表以及一个设置的字典，然后在初始化子类的调用中传递这些值，就像下面的代码一样：
+tornado.web.Application.__init__(self, handlers, **settings)   
+
+Tornado默认会自动转义模板中的内容，把标签转换为相应的HTML实体。这样可以防止后端为数据库的网站被恶意脚本攻击。
+比如，你的网站中有一个评论部分，用户可以在这里添加任何他们想说的文字进行讨论。
+虽然一些HTML标签在标记和样式冲突时不构成重大威胁（如评论中没有闭<h1>标签），但<script>标签会允许攻击者加载其他的JavaScript文件，
+打开通向跨站脚本攻击、XSS或漏洞之门。
+
+让我们考虑Burt's Book网站上的一个用户反馈页面。Melvin，今天感觉特别邪恶，在评论里提交了下面的文字：
+
+Totally hacked your site lulz <script>alert('RUNNING EVIL H4CKS AND SPL01TS NOW...')</script>
+当我们在没有转义用户内容的情况下给一个不知情的用户构建页面时，脚本标签被作为一个HTML元素解释，并被浏览器执行，所以Alice看到了如图3-4所示的提示窗口。
+幸亏Tornado会自动转义在双大括号间被渲染的表达式。更早地转义Melvin输入的文本不会激活HTML标签，并且会渲染为下面的字符串：
+Totally hacked your site lulz &lt;script&gt;alert('RUNNING EVIL H4CKS AND SPL01TS NOW...')&lt;/script&gt;
+
+在Tornado1.x版本中，模板没有被自动转义，所以我们之前谈论的防护措施需要显式地在未过滤的用户输入上调用escape()函数。
+
+所以在这里，我们可以看到自动转义是如何防止你的访客进行恶意攻击的。然而，当通过模板和模块提供HTML动态内容时它仍会让你措手不及。
+
+举个例子，如果Burt想在footer中使用模板变量设置email联系链接，他将不会得到期望的HTML链接。考虑下面的模板片段：
+
+{% set mailLink = "<a href="mailto:contact@burtsbooks.com">Contact Us</a>" %}
+{{ mailLink }}'
+它会在页面源代码中渲染成如下代码：
+
+&lt;a href=&quot;mailto:contact@burtsbooks.com&quot;&gt;Contact Us&lt;/a&gt;
+此时自动转义被运行了，很明显，这无法让人们联系上Burt。
+
+为了处理这种情况，你可以禁用自动转义，一种方法是在Application构造函数中传递autoescape=None，另一种方法是在每页的基础上修改自动转义行为，如下所示：
+
+{% autoescape None %}
+{{ mailLink }}
+这些autoescape块不需要结束标签，并且可以设置xhtml_escape来开启自动转义（默认行为），或None来关闭。
+
+然而，在理想的情况下，你希望保持自动转义开启以便继续防护你的网站。因此，你可以使用{% raw %}指令来输出不转义的内容。
+
+{% raw mailLink %}
+需要特别注意的是，当你使用诸如Tornado的linkify()和xsrf_form_html()函数时，自动转义的设置被改变了。
+所以如果你希望在前面代码的footer中使用linkify()来包含链接，你可以使用一个{% raw %}块：
+
+{% block footer %}
+    <p>
+        For more information about our selection, hours or events, please email us at
+        <a href="mailto:contact@burtsbooks.com">contact@burtsbooks.com</a>.
+    </p>
+
+    <p class="small">
+        Follow us on Facebook at
+        {% raw linkify("https://fb.me/burtsbooks", extra_params='ref=website') %}.
+    </p>
+{% end %}
+这样，你可以既利用linkify()简记的好处，又可以保持在其他地方自动转义的好处。
+
