@@ -1,0 +1,12 @@
+AJAX
+直白地说，就是没用AJAX的网页，你点一个按钮就要刷新一下页面，尽管新页面上只有一行字和当前页面不一样，但你还是要无聊地等待页面刷新。
+用了AJAX之后，你点击，然后页面上的一行字就变化了，页面本身不用刷。AJAX只是一种技术，不是某种具体的东西。不同的浏览器有自己实现AJAX的组件。
+
+JSON
+根据ECMA-404标准：
+JSON is a text format that facilitates structured data interchange between all proframming languages.
+JSON是文本格式，能用于在不同编程语言中交换结构化数据。
+而字符串是大部分编程语言中存储文本数据的数据类型，在这些编程语言中你可以把JSON文本存储在字符串中。
+
+BSON
+BSON就是二进制的JSON
