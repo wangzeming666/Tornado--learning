@@ -1,0 +1,43 @@
+Web数据库
+
+使用Pymogo进行MongoDB操作
+
+创建连接
+>>> import pymongo
+>>> client = MongoClient('localhost', 27017)
+如果使用的是远程MongoDB服务器，替换localhost和27017为合适的值
+
+选择数据库
+通过对象属性或像字典一样使用对象来获得代表一个特定数据库的对象，如果数据库不存在，则被自动建立
+
+一个数据库可以拥有任意多个集合。一个集合就是放置一些相关文档的地方。
+我们使用MongoDB执行的大部分操作（查找文档、保存文档、删除文档）都是在一个集合对象上执行的。
+你可以在数据库对象上调用collection_names方法获得数据库中的集合列表。
+>>> db.collection_names()
+[]
+我们还没有向数据库添加任何集合，所以这个列表是空的。当我们插入第一个文档时，MongoDB会自动创建集合。
+
+你可以在数据库对象上通过访问集合名字的属性来获得代表集合的对象然后调用对象的insert方法指定一个python字典来插入文档。
+比如：
+>>> widgets = db.widgets
+>>> widgets.insert({"foo":"bar"})
+ObjectId('59cb105c929e1612043ae75e')
+>>> db.collection_names()
+['widgets']
+你既可以使用数据库对象的属性访问集合，也可以把数据库对象看作一个字典然后把集合名称作为键来访问。比如，如果db是一个pymongo数据库对象，
+那么db.widgets和db["widgets"]都可以访问这个集合。
+
+处理文档
+MongoDB以文档的形式存储数据，这种形式有着相对自由的数据结构。MongoDB是一个“无模式”数据库：同一个集合中的文档通常拥有相同的结构，但是
+MongoDB中并不强制要求使用相同结构。在内部，MongoDB是以一种称为BSON的类似JSON的二进制形式存储文档。PyMongo允许我们以Python字典的形式协和取出文档。
+
+为了在集合中创建一个新的文档，我们可以使用字典作为参数调用文档的insert方法。
+既然文档在数据库中，我们可以使用集合对象的find_one方法来取出文档。你可以通过传递一个键为文档名、只为你想要匹配的表达式的字典来告诉find_one找到一个
+特定的文档。如，
+>>> widgets.find_one({"name":"flibnip"})
+{'_id': ObjectId('59cb1258929e1612043ae75f'), 'name': 'flibnip', 'description': 'grade-A industrial flibnip', 'quatity': 3}
+请注意_id域。当你创建任何文档时，MongoDB都会自动添加这个域。它的值是一个ObjectID，一种保证文档唯一的BSON对象。
+你可能已经注意到，当我们使用insert方法成功创建一个新的文档时，这个ObjectID同样被返回了。
+（当你创建文档时，可以通过给_id键赋值来覆写自动创建的ObjectID值）
+
+find_one方法返回的值时一个简单的python字典。你可以从中访问独立的项，迭代它的键值对，
