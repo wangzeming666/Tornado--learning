@@ -102,3 +102,102 @@ TypeError: ObjectId('4eb12f37136fc4b59d000000') is not JSON serializable
 '{"description": "grade-A industrial flibnip", "quantity": 4, "name": "flibnip"}'
 一个更复杂的方法是使用PyMongo的json_util库，它同样可以帮你序列化其他MongoDB特定数据类型到JSON。
 我们可以在http://api.mongodb.org/python/current/api/bson/json_util.html了解更多关于这个库的信息。
+
+MongoDB文档和JSON
+
+使用Web应用时，你经常会想采用Python字典并将其序列化为一个JSON对象（比如，作为一个AJAX请求的响应）。
+由于你使用PyMongo从MongoDB中取出的文档是一个简单的字典，你可能会认为你可以使用json模块的dumps函数就可以简单地将其转换为JSON。但，这还有一个障碍：
+
+>>> doc = db.widgets.find_one({"name": "flibnip"})
+>>> import json
+>>> json.dumps(doc)
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+    [stack trace omitted]
+TypeError: ObjectId('4eb12f37136fc4b59d000000') is not JSON serializable
+这里的问题是Python的json模块并不知道如何转换MongoDB的ObjectID类型到JSON。有很多方法可以处理这个问题。
+其中最简单的方法（也是我们在本章中采用的方法）是在我们序列化之前从字典里简单地删除_id键。
+
+>>> del doc["_id"]
+>>> json.dumps(doc)
+'{"description": "grade-A industrial flibnip", "quantity": 4, "name": "flibnip"}'
+一个更复杂的方法是使用PyMongo的json_util库，它同样可以帮你序列化其他MongoDB特定数据类型到JSON。
+我们可以在http://api.mongodb.org/python/current/api/bson/json_util.html了解更多关于这个库的信息。
+
+一个简单的持久化Web服务
+我们将要创建的应用是一个基于Web的简单字典。你发送一个指定单词的请求，然后返回这个单词的定义。
+这个Web服务将从MongoDB数据库中取得数据。具体来说，我们将根据word属性查询文档。
+在我们查看Web应用本身的源码之前，先让我们从Python解释器中向数据库添加一些单词。
+>>> import pymongo
+>>> conn = pymongo.MongoClient('localhost', 27017)
+>>> db = conn.example
+>>> db.words.insert({"word":"oarlock", "definition":"A device attached to a rowboat to hold the oars in place"})
+ObjectId('59cb5c6d929e16097cb01204')
+>>> db.words.insert({"word":"seminomadic", "definition":"Only partially nomadic"})
+ObjectId('59cb5c95929e16097cb01205')
+>>> db.words.insert({"word":"perturb","definition":"bother, unsettle, modify"})
+ObjectId('59cb5cbb929e16097cb01206')
+
+我们这个词典Web服务的源码，在这个代码中我们查询刚才添加的单词然后使用其定义作为响应。
+# definitions_readonly.py
+import tornado.httpserver
+import tornado.ioloop
+import tornado.options
+import tornado.web
+
+import pymongo
+
+from tornado.options import define, options
+define("port", default=8000, help="run on the given port", type=int)
+
+class Application(tornado.web.Application):
+	def __init__(self):
+		handlers = [(r"/(\w+)", WordHandler)]
+		conn = pymongo.MongoClient('localhost', 27017)
+		self.db = conn['example']
+		tornado.web.Application.__init__(self, handlers, debug=True)
+
+class WordHandler(tornado.web.RequestHandler):
+	def get(self, word):
+		coll = self.application.db.words
+		word_doc = coll.find_one({"word":word})
+		if word_doc:
+			del word_doc["_id"]
+			self.write(word_doc)
+		else:
+			self.set_status(404)
+			self.write({"error":"word not found"})
+
+if __name__ == '__main__':
+	tornado.options.parse_command_line()
+	http_server = tornado.httpserver.HTTPServer(Application())
+	http_server.listen(options.port)
+	tornado.ioloop.IOLoop.instance().start()
+在命令行中像下面这样运行这个程序：
+$ python definitions_readonly.py
+现在使用curl或者你的浏览器来向应用发送一个请求。
+$ curl http://localhost:8000/perturb
+{"definition": "Bother, unsettle, modify", "word": "perturb"}
+如果我们请求一个数据库中没有添加的单词，会得到一个404错误以及一个错误信息：
+$ curl http://localhost:8000/snorkle
+{"error": "word not found"}
+那么这个程序是如何工作的呢？让我们看看这个程序的主线。开始，我们在程序的最上面导入了import pymongo库。
+然后我们在我们的TornadoApplication对象的__init__方法中实例化了一个pymongo连接对象。
+我们在Application对象中创建了一个db属性，指向MongoDB的example数据库。下面是相关的代码：
+conn = pymongo.Connection("localhost", 27017)
+self.db = conn["example"]
+一旦我们在Application对象中添加了db属性，我们就可以在任何RequestHandler对象中使用self.application.db访问它。
+实际上，这正是我们为了取出pymongo的words集合对象而在WordHandler中get方法所做的事情。
+def get(self, word):
+    coll = self.application.db.words
+    word_doc = coll.find_one({"word": word})
+    if word_doc:
+        del word_doc["_id"]
+        self.write(word_doc)
+    else:
+        self.set_status(404)
+        self.write({"error": "word not found"})
+在我们将集合对象指定给变量coll后，我们使用用户在HTTP路径中请求的单词调用find_one方法。
+如果我们发现这个单词，则从字典中删除_id键（以便Python的json库可以将其序列化），然后将其传递给RequestHandler的write方法。
+write方法将会自动序列化字典为JSON格式。
+如果find_one方法没有匹配任何对象，则返回None。在这种情况下，我们将响应状态设置为404，并且写一个简短的JSON来提示用户这个单词在数据库中没有找到。
