@@ -40,4 +40,21 @@ MongoDB中并不强制要求使用相同结构。在内部，MongoDB是以一种
 你可能已经注意到，当我们使用insert方法成功创建一个新的文档时，这个ObjectID同样被返回了。
 （当你创建文档时，可以通过给_id键赋值来覆写自动创建的ObjectID值）
 
-find_one方法返回的值时一个简单的python字典。你可以从中访问独立的项，迭代它的键值对，
+find_one方法返回的值时一个简单的python字典。你可以从中访问独立的项，迭代它的键值对，或者就像使用其他python字典那样修改值。
+>>> doc = db.widgets.find_one({"name":"flibnip"})
+>>> type(doc)
+<class 'dict'>
+>>> print(doc['name'])
+flibnip
+>>> doc['quantity'] = 4
+然而字典的改变并不会自动保存到数据库中。如果你希望把字典的改变保存，需要调用集合的save方法，并将修改后的字典作为参数进行传递
+>>> db.widgets.save(doc)
+ObjectId('59cb1258929e1612043ae75f')
+>>> db.widgets.find_one({"name":"flibnip"})
+{'_id': ObjectId('59cb1258929e1612043ae75f'), 
+'name': 'flibnip', 'description': 'grade-A industrial flibnip', 'quatity': 3, 'quantity': 4}
+在集合中插入更多的文档：
+>>> widgets.insert({"name":"smorkeg", "description":"for external use only", "quantity":4})
+ObjectId('59cb2186929e1612043ae760')
+>>> widgets.insert({"name":"clobbashker", "description":"properties available on request", "quantity":2})
+ObjectId('59cb21b9929e1612043ae761')
