@@ -58,3 +58,47 @@ ObjectId('59cb1258929e1612043ae75f')
 ObjectId('59cb2186929e1612043ae760')
 >>> widgets.insert({"name":"clobbashker", "description":"properties available on request", "quantity":2})
 ObjectId('59cb21b9929e1612043ae761')
+我们可以通过集合的find方法来获得集合中所有文档的列表，然后迭代器结果：
+>>> for doc in widgets.find():
+	print(doc)
+	
+{'_id': ObjectId('59cb105c929e1612043ae75e'), 'foo': 'bar'}
+{'_id': ObjectId('59cb1258929e1612043ae75f'), 'name': 'flibnip', 'description': 'grade-A industrial flibnip', 'quatity': 3, 'quantity': 4}
+{'_id': ObjectId('59cb2186929e1612043ae760'), 'name': 'smorkeg', 'description': 'for external use only', 'quantity': 4}
+{'_id': ObjectId('59cb21b9929e1612043ae761'), 'name': 'clobbashker', 'description': 'properties available on request', 'quantity': 2}
+如果我们希望获得文档的一个子集我们可以在find方法中传递一个字典参数，就像我们在find_one中那样。比如，找到那些quantity键的值为4的集合：
+>>> for doc in widgets.find({"quantity":4}):
+	print(doc)	
+  
+{'_id': ObjectId('59cb1258929e1612043ae75f'), 'name': 'flibnip', 'description': 'grade-A industrial flibnip', 'quatity': 3, 'quantity': 4}
+{'_id': ObjectId('59cb2186929e1612043ae760'), 'name': 'smorkeg', 'description': 'for external use only', 'quantity': 4}
+最后我们可以使用集合的remove方法从集合中删除一个文档。remove方法和find、find_one一样，也可以使用一个字典参数来指定哪个文档需要被删除。
+比如，
+>>> widgets.remove({"name":"flibnip"})
+{'n': 1, 'ok': 1.0}
+>>> for doc in widgets.find():
+	print(doc)
+
+{'_id': ObjectId('59cb105c929e1612043ae75e'), 'foo': 'bar'}
+{'_id': ObjectId('59cb2186929e1612043ae760'), 'name': 'smorkeg', 'description': 'for external use only', 'quantity': 4}
+{'_id': ObjectId('59cb21b9929e1612043ae761'), 'name': 'clobbashker', 'description': 'properties available on request', 'quantity': 2}
+
+使用Web应用时，你经常会想采用Python字典并将其序列化为一个JSON对象（比如，作为一个AJAX请求的响应）。
+由于你使用PyMongo从MongoDB中取出的文档是一个简单的字典，你可能会认为你可以使用json模块的dumps函数就可以简单地将其转换为JSON。
+但，这还有一个障碍：
+
+>>> doc = db.widgets.find_one({"name": "flibnip"})
+>>> import json
+>>> json.dumps(doc)
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+    [stack trace omitted]
+TypeError: ObjectId('4eb12f37136fc4b59d000000') is not JSON serializable
+这里的问题是Python的json模块并不知道如何转换MongoDB的ObjectID类型到JSON。有很多方法可以处理这个问题。
+其中最简单的方法（也是我们在本章中采用的方法）是在我们序列化之前从字典里简单地删除_id键。
+
+>>> del doc["_id"]
+>>> json.dumps(doc)
+'{"description": "grade-A industrial flibnip", "quantity": 4, "name": "flibnip"}'
+一个更复杂的方法是使用PyMongo的json_util库，它同样可以帮你序列化其他MongoDB特定数据类型到JSON。
+我们可以在http://api.mongodb.org/python/current/api/bson/json_util.html了解更多关于这个库的信息。
