@@ -117,6 +117,9 @@ db.SetName.update(query，update[, upsert][, multi][, writeConcern])
         upsert : 可选，这个参数的意思是，如果不存在update的记录，是否插入objNew,true为插入，默认是false，不插入。
         multi : 可选，mongodb 默认是false,只更新找到的第一条记录，如果这个参数为true,就把按条件查出来多条记录全部更新。
         writeConcern :可选，抛出异常的级别。
+例如，        
+db.col.update( { "count" : { $gt : 1 } } , { $set : { "test2" : "OK"} } );        
+如果用$unset替代$set 会将某个键完全删除
 save() 方法通过传入的文档来替换已有文档。
 db.SetName.save(document)
 在3.2版本开始，MongoDB提供以下更新集合文档的方法：
