@@ -46,3 +46,45 @@ This method was added in Python 3.4.2. Use the async() function to support also 
 New in version 3.4.2.
 
 
+协程的装饰器的作用
+
+@asyncio.coroutine
+Decorator to mark generator-based coroutines. 
+This enables the generator use yield from to call async def coroutines, 
+and also enables the generator to be called by async def coroutines, for instance using an await expression.
+
+There is no need to decorate async def coroutines themselves.
+
+If the generator is not yielded from before it is destroyed, an error message is logged. See Detect coroutines never scheduled.
+
+Note In this documentation, some methods are documented as coroutines, even if they are plain Python functions returning a Future.
+This is intentional to have a freedom of tweaking the implementation of these functions in the future. 
+If such a function is needed to be used in a callback-style code, wrap its result with ensure_future().
+
+
+下面是Python文档对async函数和语句的描述
+
+8.8.1. Coroutine function definition
+async_funcdef ::=  [decorators] "async" "def" funcname "(" [parameter_list] ")" ["->" expression] ":" suite
+Execution of Python coroutines can be suspended and resumed at many points (see coroutine). 
+In the body of a coroutine, any await and async identifiers become reserved keywords; 
+await expressions, async for and async with can only be used in coroutine bodies.
+
+Functions defined with async def syntax are always coroutine functions, even if they do not contain await or async keywords.
+
+It is a SyntaxError to use yield from expressions in async def coroutines.
+
+An example of a coroutine function:
+
+async def func(param1, param2):
+    do_stuff()
+    await some_coroutine()
+8.8.2. The async for statement
+async_for_stmt ::=  "async" for_stmt
+An asynchronous iterable is able to call asynchronous code in its iter implementation, 
+and asynchronous iterator can call asynchronous code in its next method.
+
+The async for statement allows convenient iteration over asynchronous iterators.
+
+
+内容虽多，但十分重要的概念。
