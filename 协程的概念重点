@@ -1,0 +1,48 @@
+The word “coroutine”, like the word “generator”, is used for two different (though related) concepts:
+
+The function that defines a coroutine (a function definition using async def or decorated with @asyncio.coroutine).
+If disambiguation is needed we will call this a coroutine function (iscoroutinefunction() returns True).
+The object obtained by calling a coroutine function. 
+This object represents a computation or an I/O operation (usually a combination) that will complete eventually.
+If disambiguation is needed we will call it a coroutine object (iscoroutine() returns True).
+Things a coroutine can do:
+
+result = await future or result = yield from future – suspends the coroutine until the future is done, 
+then returns the future’s result, or raises an exception, which will be propagated. (If the future is cancelled, 
+it will raise a CancelledError exception.) Note that tasks are futures, and everything said about futures also applies to tasks.
+result = await coroutine or result = yield from coroutine – wait for another coroutine to produce a result 
+(or raise an exception, which will be propagated). The coroutine expression must be a call to another coroutine.
+return expression – produce a result to the coroutine that is waiting for this one using await or yield from.
+raise exception – raise an exception in the coroutine that is waiting for this one using await or yield from.
+Calling a coroutine does not start its code running – the coroutine object returned by the call doesn’t do anything until
+you schedule its execution. There are two basic ways to start it running: 
+call await coroutine or yield from coroutine from another coroutine (assuming the other coroutine is already running!), 
+or schedule its execution using the ensure_future() function or the AbstractEventLoop.create_task() method.
+
+Coroutines (and tasks) can only run when the event loop is running.
+
+
+
+其中提到的两个函数的介绍
+
+asyncio.ensure_future(coro_or_future, *, loop=None)
+Schedule the execution of a coroutine object: wrap it in a future. Return a Task object.
+
+If the argument is a Future, it is returned directly.
+
+New in version 3.4.4.
+
+Changed in version 3.5.1: The function accepts any awaitable object.
+
+
+
+AbstractEventLoop.create_task(coro)
+Schedule the execution of a coroutine object: wrap it in a future. Return a Task object.
+
+Third-party event loops can use their own subclass of Task for interoperability. In this case, the result type is a subclass of Task.
+
+This method was added in Python 3.4.2. Use the async() function to support also older Python versions.
+
+New in version 3.4.2.
+
+
