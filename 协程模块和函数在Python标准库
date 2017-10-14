@@ -1,0 +1,41 @@
+18.5.3. Tasks and coroutines
+18.5.3.1. Coroutines
+A coroutine is a generator that follows certain conventions. 
+For documentation purposes, all coroutines should be decorated with @asyncio.coroutine, but this cannot be strictly enforced.
+
+Coroutines use the yield from syntax introduced in PEP 380, instead of the original yield syntax.
+
+The word “coroutine”, like the word “generator”, is used for two different (though related) concepts:
+
+The function that defines a coroutine (a function definition decorated with @asyncio.coroutine).
+If disambiguation is needed we will call this a coroutine function (iscoroutinefunction() returns True).
+The object obtained by calling a coroutine function.
+This object represents a computation or an I/O operation (usually a combination) that will complete eventually. 
+If disambiguation is needed we will call it a coroutine object (iscoroutine() returns True).
+Things a coroutine can do:
+
+result = yield from future – suspends the coroutine until the future is done, then returns the future’s result, 
+or raises an exception, which will be propagated. (If the future is cancelled, it will raise a CancelledError exception.) 
+Note that tasks are futures, and everything said about futures also applies to tasks.
+result = yield from coroutine – wait for another coroutine to produce a result (or raise an exception, which will be propagated).
+The coroutine expression must be a call to another coroutine.
+return expression – produce a result to the coroutine that is waiting for this one using yield from.
+raise exception – raise an exception in the coroutine that is waiting for this one using yield from.
+Calling a coroutine does not start its code running – it is just a generator, 
+and the coroutine object returned by the call is really a generator object, which doesn’t do anything until you iterate over it. 
+In the case of a coroutine object, there are two basic ways to start it running: 
+call yield from coroutine from another coroutine (assuming the other coroutine is already running!),
+or schedule its execution using the async() function or the BaseEventLoop.create_task() method.
+
+Coroutines (and tasks) can only run when the event loop is running.
+
+@asyncio.coroutine
+Decorator to mark coroutines.
+
+If the coroutine is not yielded from before it is destroyed, an error message is logged. See Detect coroutines never scheduled.
+
+Note In this documentation, some methods are documented as coroutines, even if they are plain Python functions returning a Future.
+This is intentional to have a freedom of tweaking the implementation of these functions in the future. 
+If such a function is needed to be used in a callback-style code, wrap its result with async().
+
+以上引自Python documents
