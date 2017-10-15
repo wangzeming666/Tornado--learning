@@ -1,0 +1,90 @@
+The word “coroutine”, like the word “generator”, is used for two different (though related) concepts:
+
+The function that defines a coroutine (a function definition using async def or decorated with @asyncio.coroutine).
+If disambiguation is needed we will call this a coroutine function (iscoroutinefunction() returns True).
+The object obtained by calling a coroutine function. 
+This object represents a computation or an I/O operation (usually a combination) that will complete eventually.
+If disambiguation is needed we will call it a coroutine object (iscoroutine() returns True).
+Things a coroutine can do:
+
+result = await future or result = yield from future – suspends the coroutine until the future is done, 
+then returns the future’s result, or raises an exception, which will be propagated. (If the future is cancelled, 
+it will raise a CancelledError exception.) Note that tasks are futures, and everything said about futures also applies to tasks.
+result = await coroutine or result = yield from coroutine – wait for another coroutine to produce a result 
+(or raise an exception, which will be propagated). The coroutine expression must be a call to another coroutine.
+return expression – produce a result to the coroutine that is waiting for this one using await or yield from.
+raise exception – raise an exception in the coroutine that is waiting for this one using await or yield from.
+Calling a coroutine does not start its code running – the coroutine object returned by the call doesn’t do anything until
+you schedule its execution. There are two basic ways to start it running: 
+call await coroutine or yield from coroutine from another coroutine (assuming the other coroutine is already running!), 
+or schedule its execution using the ensure_future() function or the AbstractEventLoop.create_task() method.
+
+Coroutines (and tasks) can only run when the event loop is running.
+
+
+
+其中提到的两个函数的介绍
+
+asyncio.ensure_future(coro_or_future, *, loop=None)
+Schedule the execution of a coroutine object: wrap it in a future. Return a Task object.
+
+If the argument is a Future, it is returned directly.
+
+New in version 3.4.4.
+
+Changed in version 3.5.1: The function accepts any awaitable object.
+
+
+
+AbstractEventLoop.create_task(coro)
+Schedule the execution of a coroutine object: wrap it in a future. Return a Task object.
+
+Third-party event loops can use their own subclass of Task for interoperability. In this case, the result type is a subclass of Task.
+
+This method was added in Python 3.4.2. Use the async() function to support also older Python versions.
+
+New in version 3.4.2.
+
+
+协程的装饰器的作用
+
+@asyncio.coroutine
+Decorator to mark generator-based coroutines. 
+This enables the generator use yield from to call async def coroutines, 
+and also enables the generator to be called by async def coroutines, for instance using an await expression.
+
+There is no need to decorate async def coroutines themselves.
+
+If the generator is not yielded from before it is destroyed, an error message is logged. See Detect coroutines never scheduled.
+
+Note In this documentation, some methods are documented as coroutines, even if they are plain Python functions returning a Future.
+This is intentional to have a freedom of tweaking the implementation of these functions in the future. 
+If such a function is needed to be used in a callback-style code, wrap its result with ensure_future().
+
+
+下面是Python文档对async函数和语句的描述
+
+8.8.1. Coroutine function definition
+async_funcdef ::=  [decorators] "async" "def" funcname "(" [parameter_list] ")" ["->" expression] ":" suite
+Execution of Python coroutines can be suspended and resumed at many points (see coroutine). 
+In the body of a coroutine, any await and async identifiers become reserved keywords; 
+await expressions, async for and async with can only be used in coroutine bodies.
+
+Functions defined with async def syntax are always coroutine functions, even if they do not contain await or async keywords.
+
+It is a SyntaxError to use yield from expressions in async def coroutines.
+
+An example of a coroutine function:
+
+async def func(param1, param2):
+    do_stuff()
+    await some_coroutine()
+8.8.2. The async for statement
+async_for_stmt ::=  "async" for_stmt
+An asynchronous iterable is able to call asynchronous code in its iter implementation, 
+and asynchronous iterator can call asynchronous code in its next method.
+
+The async for statement allows convenient iteration over asynchronous iterators.
+
+
+内容虽多，但十分重要的概念。

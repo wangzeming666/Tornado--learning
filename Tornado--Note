@@ -1,0 +1,140 @@
+# hello.py
+import tornado.httpserver
+import tornado.ioloop
+import tornado.options
+import tornado.web
+
+from tornado.options import define, options
+define("port", default=8000, help="run on the given port", type=int)
+
+class IndexHandler(tornado.web.RequestHandler):
+    def get(self):
+        greeting = self.get_argument('greeting', 'Hello')
+        self.write(greeting + ', friendly user!')
+
+if __name__ == "__main__":
+    tornado.options.parse_command_line()
+    app = tornado.web.Application(handlers=[(r"/", IndexHandler)])
+    http_server = tornado.httpserver.HTTPServer(app)
+    http_server.listen(options.port)
+    tornado.ioloop.IOLoop.instance().start()
+    
+   
+其中的 from tornado.options import define, options
+       define("port", default=8000, help="run on the given port", type=int)
+
+Tornado有一个非常有用的模块（tornado.options)来从命令行中读取设置。
+在命令行中运行这个程序，python hello.py --port=8000
+我们使用这个模块来指定应用监听HTTP请求的端口。
+如果有一个与define语句中同名的设置在命令行中被给出，那么它将成为全局options的一个属性。
+Tornado的RequestHandler类有一系列有用的内建方法，如get_argument，对HTTP的GET请求做出响应，
+        greeting = self.get_argument('greeting', 'Hello')
+get_argument()从一个查询字符串中取得参数greeting，如果这个参数没有出现在查询字符串内，Tornado将使用get_argument的第二个参数作为默认值
+RequestHandler的另一个非常有用的方法是write，它以一个字符串作为函数的参数，并将其写入到HTTP响应中。
+        if __name__ == '__main__':
+            tornado.options.parse_command_line()
+            app = tornado.web.Application(handlers=[(r'/', IndexHandler)])            
+在这里使用Tornado的options模块来解析命令行。然后创建了一个Tornado的Appliacation类的实例。传递给Application类__init__方法最重要的参数，
+就是handlers。它告诉Tornado应该用哪个类来响应请求。
+        http_server = tornado.httpserver.HTTPServer(app)
+        http_server.listen(options.port)
+        tornado.ioloop.IOLoop.instance().start()
+这一段代码很常用，     
+一旦Application对象被创建，可以其传递给Tornado的HTTServer对象，然后使用命令行制定的端口监听，最后在程序准备好接收HTTP请求后，我们创建一个
+Tornado的IOLoop的实例。
+前面的参数handlers非常重要，它应该是一个元组组成的列表，其中每个元组的第一个元素是一个用于匹配的正则表达式，第二个元素是一个RequestHanlder类。
+之所以是元组，是因为可以按需要指定任意多个元组。
+
+
+
+import textwrap
+
+import tornado.httpserver
+import tornado.ioloop
+import tornado.options
+import tornado.web
+
+from tornado.options import define, options
+define("port", default=8000, help="run on the given port", type=int)
+
+class ReverseHandler(tornado.web.RequestHandler):
+    def get(self, input):
+        self.write(input[::-1])
+
+class WrapHandler(tornado.web.RequestHandler):
+    def post(self):
+        text = self.get_argument('text')
+        width = self.get_argument('width', 40)
+        self.write(textwrap.fill(text, int(width)))
+        
+if __name__ == "__main__":
+    tornado.options.parse_command_line()
+    app = tornado.web.Application(
+        handlers=[
+            (r"/reverse/(\w+)", ReverseHandler),
+            (r"/wrap", WrapHandler)
+        ]
+    )
+    http_server = tornado.httpserver.HTTPServer(app)
+    http_server.listen(options.port)
+    tornado.ioloop.IOLoop.instance().start()
+    
+    
+在上面的代码中,Application类在handlers参数中实例化了两个Request Handler类对象。和上一个例子一样。
+        app = tornado.web.Application(handlers=[
+            (r"/reverse/(\w+)", ReverseHandler),
+            (r"/wrap", WrapHandler)
+            ])
+    
+正则表达式告诉Tornado匹配任何以字符串/reverse/开始并紧跟着一个或多个字母的路径。
+括号的含义是让Tornado保存匹配括号里面表达式的字符串，并将其作为请求方法的一个参数传递给RequestHandler类。
+        class ReverseHandler(tornado.web.RequestHandler):
+            def post(self）：
+                text = self.get_argument('text')
+                width = self.get_argument('width', 40)
+                self.write(textwrap.fill(text, int(width)))
+warpHandler类处理匹配路径为/wrap的请求。这个处理函数定义了一个post方法，也就是说它接收HTTP的POST方法的请求。
+之前使用RequestHandler对象的get_argument方法来捕获请求查询字符串的参数。同样也可以使用相同的方法来获得POST请求传递的参数
+（Tornado可以解析URLencoded和multipart结构的POST请求）。一旦我们从POST中获得了文本和宽度的参数，我们使用Python内建的
+textwarp模块来以指定的宽度装饰文本，并将结果字符串写回到HTTP响应中。
+
+上文中大致介绍了RequestHandler对象，如何从一个传入的HTTP请求中获得信息（使用get_argument和传入到get和post的参数）以及写HTTP响应（使用Write）
+每个类只定义了一个HTTP方法的行为，而在同一个处理函数中定义多个方法是可能的，有效的。Tornado支持任何合法的HTTP请求（GET，POST，PUT，DELIETE，
+HEAD，OPTIONS）。可以定义上述任一种方法的行为，只需要在RequestHandler类中使用同名的方法。
+
+可以使用RequestHandler类的set_status()方法显示的设置HTTP状态码。下面是一个常用情况的纲要：
+        404 Not Found 
+            Tornado会在HTTP请求的路径无法匹配任何RequestHandler类相对应的模式时返回404（Not Found）响应码。
+        400 Bad Request
+            如果你调用了一个没有默认值的get_argument函数，并且没有给定名称的参数，Tornado将自动返回一个400（Bad Request）响应码。
+        405 Method Not Allowed
+            如果传入的请求使用了RequestHandler中没有定义的HTTP方法（比如，一个POST请求，但是处理函数中只有定义了get方法），Tornado将
+            返回一个405（Method Not Allowed）响应码。
+        500 Internal Server Error
+            当程序遇到任何不能让其退出的错误时，Tornado将返回500（Internal Server Error）响应码。你代码中任何没有捕获的异常也会导致500响应码。
+        200 OK
+            如果响应成功，并且没有其他返回码被设置，Tornado将默认返回一个200（OK）响应码。
+            
+当上述任何一种错误发生时，Tornado将默认向客户端发送一个包含状态码和错误信息的简短片段。如果你想使用自己的方法代替默认的错误相应，你可以重写
+write_error方法在你的RequestHandler类中。例子如下，
+        import tornado.httpserver
+        import tornado.ioloop
+        import tornado.options
+        import tornado.web
+        
+        from tornado.options import define, options
+        define("port", default=8000, help="run on the given port", type=int)
+        
+        class IndexHandler(tornado.web.RequestHandler):
+            def get(self):
+                greeting = self.get_argument('greeting', 'Hello')
+                self.write(greetiong + ', friendly user!')
+            def write_error(self, status_code, **kwargs):
+                self.write("Gosh darnit, user! You caused a %d error." % status_code)
+                
+        if __name__ == "__main__":
+            tornado.options.parse_command_line()
+            app = tornado.web.Application(handlers=[(r"/", IndexHandler)])
+            http_server = tornado.httpserver.HTTPServer(app)
+            http_server.listen(options.port)
+            tornadoo.ioloop.IOLoop.instance().start()

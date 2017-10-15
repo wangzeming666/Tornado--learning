@@ -1,0 +1,203 @@
+Web数据库
+
+使用Pymogo进行MongoDB操作
+
+创建连接
+>>> import pymongo
+>>> client = MongoClient('localhost', 27017)
+如果使用的是远程MongoDB服务器，替换localhost和27017为合适的值
+
+选择数据库
+通过对象属性或像字典一样使用对象来获得代表一个特定数据库的对象，如果数据库不存在，则被自动建立
+
+一个数据库可以拥有任意多个集合。一个集合就是放置一些相关文档的地方。
+我们使用MongoDB执行的大部分操作（查找文档、保存文档、删除文档）都是在一个集合对象上执行的。
+你可以在数据库对象上调用collection_names方法获得数据库中的集合列表。
+>>> db.collection_names()
+[]
+我们还没有向数据库添加任何集合，所以这个列表是空的。当我们插入第一个文档时，MongoDB会自动创建集合。
+
+你可以在数据库对象上通过访问集合名字的属性来获得代表集合的对象然后调用对象的insert方法指定一个python字典来插入文档。
+比如：
+>>> widgets = db.widgets
+>>> widgets.insert({"foo":"bar"})
+ObjectId('59cb105c929e1612043ae75e')
+>>> db.collection_names()
+['widgets']
+你既可以使用数据库对象的属性访问集合，也可以把数据库对象看作一个字典然后把集合名称作为键来访问。比如，如果db是一个pymongo数据库对象，
+那么db.widgets和db["widgets"]都可以访问这个集合。
+
+处理文档
+MongoDB以文档的形式存储数据，这种形式有着相对自由的数据结构。MongoDB是一个“无模式”数据库：同一个集合中的文档通常拥有相同的结构，但是
+MongoDB中并不强制要求使用相同结构。在内部，MongoDB是以一种称为BSON的类似JSON的二进制形式存储文档。PyMongo允许我们以Python字典的形式协和取出文档。
+
+为了在集合中创建一个新的文档，我们可以使用字典作为参数调用文档的insert方法。
+既然文档在数据库中，我们可以使用集合对象的find_one方法来取出文档。你可以通过传递一个键为文档名、只为你想要匹配的表达式的字典来告诉find_one找到一个
+特定的文档。如，
+>>> widgets.find_one({"name":"flibnip"})
+{'_id': ObjectId('59cb1258929e1612043ae75f'), 'name': 'flibnip', 'description': 'grade-A industrial flibnip', 'quatity': 3}
+请注意_id域。当你创建任何文档时，MongoDB都会自动添加这个域。它的值是一个ObjectID，一种保证文档唯一的BSON对象。
+你可能已经注意到，当我们使用insert方法成功创建一个新的文档时，这个ObjectID同样被返回了。
+（当你创建文档时，可以通过给_id键赋值来覆写自动创建的ObjectID值）
+
+find_one方法返回的值时一个简单的python字典。你可以从中访问独立的项，迭代它的键值对，或者就像使用其他python字典那样修改值。
+>>> doc = db.widgets.find_one({"name":"flibnip"})
+>>> type(doc)
+<class 'dict'>
+>>> print(doc['name'])
+flibnip
+>>> doc['quantity'] = 4
+然而字典的改变并不会自动保存到数据库中。如果你希望把字典的改变保存，需要调用集合的save方法，并将修改后的字典作为参数进行传递
+>>> db.widgets.save(doc)
+ObjectId('59cb1258929e1612043ae75f')
+>>> db.widgets.find_one({"name":"flibnip"})
+{'_id': ObjectId('59cb1258929e1612043ae75f'), 
+'name': 'flibnip', 'description': 'grade-A industrial flibnip', 'quatity': 3, 'quantity': 4}
+在集合中插入更多的文档：
+>>> widgets.insert({"name":"smorkeg", "description":"for external use only", "quantity":4})
+ObjectId('59cb2186929e1612043ae760')
+>>> widgets.insert({"name":"clobbashker", "description":"properties available on request", "quantity":2})
+ObjectId('59cb21b9929e1612043ae761')
+我们可以通过集合的find方法来获得集合中所有文档的列表，然后迭代器结果：
+>>> for doc in widgets.find():
+	print(doc)
+	
+{'_id': ObjectId('59cb105c929e1612043ae75e'), 'foo': 'bar'}
+{'_id': ObjectId('59cb1258929e1612043ae75f'), 'name': 'flibnip', 'description': 'grade-A industrial flibnip', 'quatity': 3, 'quantity': 4}
+{'_id': ObjectId('59cb2186929e1612043ae760'), 'name': 'smorkeg', 'description': 'for external use only', 'quantity': 4}
+{'_id': ObjectId('59cb21b9929e1612043ae761'), 'name': 'clobbashker', 'description': 'properties available on request', 'quantity': 2}
+如果我们希望获得文档的一个子集我们可以在find方法中传递一个字典参数，就像我们在find_one中那样。比如，找到那些quantity键的值为4的集合：
+>>> for doc in widgets.find({"quantity":4}):
+	print(doc)	
+  
+{'_id': ObjectId('59cb1258929e1612043ae75f'), 'name': 'flibnip', 'description': 'grade-A industrial flibnip', 'quatity': 3, 'quantity': 4}
+{'_id': ObjectId('59cb2186929e1612043ae760'), 'name': 'smorkeg', 'description': 'for external use only', 'quantity': 4}
+最后我们可以使用集合的remove方法从集合中删除一个文档。remove方法和find、find_one一样，也可以使用一个字典参数来指定哪个文档需要被删除。
+比如，
+>>> widgets.remove({"name":"flibnip"})
+{'n': 1, 'ok': 1.0}
+>>> for doc in widgets.find():
+	print(doc)
+
+{'_id': ObjectId('59cb105c929e1612043ae75e'), 'foo': 'bar'}
+{'_id': ObjectId('59cb2186929e1612043ae760'), 'name': 'smorkeg', 'description': 'for external use only', 'quantity': 4}
+{'_id': ObjectId('59cb21b9929e1612043ae761'), 'name': 'clobbashker', 'description': 'properties available on request', 'quantity': 2}
+
+使用Web应用时，你经常会想采用Python字典并将其序列化为一个JSON对象（比如，作为一个AJAX请求的响应）。
+由于你使用PyMongo从MongoDB中取出的文档是一个简单的字典，你可能会认为你可以使用json模块的dumps函数就可以简单地将其转换为JSON。
+但，这还有一个障碍：
+
+>>> doc = db.widgets.find_one({"name": "flibnip"})
+>>> import json
+>>> json.dumps(doc)
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+    [stack trace omitted]
+TypeError: ObjectId('4eb12f37136fc4b59d000000') is not JSON serializable
+这里的问题是Python的json模块并不知道如何转换MongoDB的ObjectID类型到JSON。有很多方法可以处理这个问题。
+其中最简单的方法（也是我们在本章中采用的方法）是在我们序列化之前从字典里简单地删除_id键。
+
+>>> del doc["_id"]
+>>> json.dumps(doc)
+'{"description": "grade-A industrial flibnip", "quantity": 4, "name": "flibnip"}'
+一个更复杂的方法是使用PyMongo的json_util库，它同样可以帮你序列化其他MongoDB特定数据类型到JSON。
+我们可以在http://api.mongodb.org/python/current/api/bson/json_util.html了解更多关于这个库的信息。
+
+MongoDB文档和JSON
+
+使用Web应用时，你经常会想采用Python字典并将其序列化为一个JSON对象（比如，作为一个AJAX请求的响应）。
+由于你使用PyMongo从MongoDB中取出的文档是一个简单的字典，你可能会认为你可以使用json模块的dumps函数就可以简单地将其转换为JSON。但，这还有一个障碍：
+
+>>> doc = db.widgets.find_one({"name": "flibnip"})
+>>> import json
+>>> json.dumps(doc)
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+    [stack trace omitted]
+TypeError: ObjectId('4eb12f37136fc4b59d000000') is not JSON serializable
+这里的问题是Python的json模块并不知道如何转换MongoDB的ObjectID类型到JSON。有很多方法可以处理这个问题。
+其中最简单的方法（也是我们在本章中采用的方法）是在我们序列化之前从字典里简单地删除_id键。
+
+>>> del doc["_id"]
+>>> json.dumps(doc)
+'{"description": "grade-A industrial flibnip", "quantity": 4, "name": "flibnip"}'
+一个更复杂的方法是使用PyMongo的json_util库，它同样可以帮你序列化其他MongoDB特定数据类型到JSON。
+我们可以在http://api.mongodb.org/python/current/api/bson/json_util.html了解更多关于这个库的信息。
+
+一个简单的持久化Web服务
+我们将要创建的应用是一个基于Web的简单字典。你发送一个指定单词的请求，然后返回这个单词的定义。
+这个Web服务将从MongoDB数据库中取得数据。具体来说，我们将根据word属性查询文档。
+在我们查看Web应用本身的源码之前，先让我们从Python解释器中向数据库添加一些单词。
+>>> import pymongo
+>>> conn = pymongo.MongoClient('localhost', 27017)
+>>> db = conn.example
+>>> db.words.insert({"word":"oarlock", "definition":"A device attached to a rowboat to hold the oars in place"})
+ObjectId('59cb5c6d929e16097cb01204')
+>>> db.words.insert({"word":"seminomadic", "definition":"Only partially nomadic"})
+ObjectId('59cb5c95929e16097cb01205')
+>>> db.words.insert({"word":"perturb","definition":"bother, unsettle, modify"})
+ObjectId('59cb5cbb929e16097cb01206')
+
+我们这个词典Web服务的源码，在这个代码中我们查询刚才添加的单词然后使用其定义作为响应。
+# definitions_readonly.py
+import tornado.httpserver
+import tornado.ioloop
+import tornado.options
+import tornado.web
+
+import pymongo
+
+from tornado.options import define, options
+define("port", default=8000, help="run on the given port", type=int)
+
+class Application(tornado.web.Application):
+	def __init__(self):
+		handlers = [(r"/(\w+)", WordHandler)]
+		conn = pymongo.MongoClient('localhost', 27017)
+		self.db = conn['example']
+		tornado.web.Application.__init__(self, handlers, debug=True)
+
+class WordHandler(tornado.web.RequestHandler):
+	def get(self, word):
+		coll = self.application.db.words
+		word_doc = coll.find_one({"word":word})
+		if word_doc:
+			del word_doc["_id"]
+			self.write(word_doc)
+		else:
+			self.set_status(404)
+			self.write({"error":"word not found"})
+
+if __name__ == '__main__':
+	tornado.options.parse_command_line()
+	http_server = tornado.httpserver.HTTPServer(Application())
+	http_server.listen(options.port)
+	tornado.ioloop.IOLoop.instance().start()
+在命令行中像下面这样运行这个程序：
+$ python definitions_readonly.py
+现在使用curl或者你的浏览器来向应用发送一个请求。
+$ curl http://localhost:8000/perturb
+{"definition": "Bother, unsettle, modify", "word": "perturb"}
+如果我们请求一个数据库中没有添加的单词，会得到一个404错误以及一个错误信息：
+$ curl http://localhost:8000/snorkle
+{"error": "word not found"}
+那么这个程序是如何工作的呢？让我们看看这个程序的主线。开始，我们在程序的最上面导入了import pymongo库。
+然后我们在我们的TornadoApplication对象的__init__方法中实例化了一个pymongo连接对象。
+我们在Application对象中创建了一个db属性，指向MongoDB的example数据库。下面是相关的代码：
+conn = pymongo.Connection("localhost", 27017)
+self.db = conn["example"]
+一旦我们在Application对象中添加了db属性，我们就可以在任何RequestHandler对象中使用self.application.db访问它。
+实际上，这正是我们为了取出pymongo的words集合对象而在WordHandler中get方法所做的事情。
+def get(self, word):
+    coll = self.application.db.words
+    word_doc = coll.find_one({"word": word})
+    if word_doc:
+        del word_doc["_id"]
+        self.write(word_doc)
+    else:
+        self.set_status(404)
+        self.write({"error": "word not found"})
+在我们将集合对象指定给变量coll后，我们使用用户在HTTP路径中请求的单词调用find_one方法。
+如果我们发现这个单词，则从字典中删除_id键（以便Python的json库可以将其序列化），然后将其传递给RequestHandler的write方法。
+write方法将会自动序列化字典为JSON格式。
+如果find_one方法没有匹配任何对象，则返回None。在这种情况下，我们将响应状态设置为404，并且写一个简短的JSON来提示用户这个单词在数据库中没有找到。

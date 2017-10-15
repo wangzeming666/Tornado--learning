@@ -1,0 +1,54 @@
+路由表是URLSpec对象（或元组）的列表，每个对象包含（至少）正则表达式和处理程序类.
+规则： 第一个匹配规则。如果正则表达式包含捕获组，则这些组是路径参数，并将被传递给处理程序的HTTP方法.
+如果一个字典作为第三个元素传递URLSpec，它将提供将被传递给 RequestHandler.initialize 的初始化参数.
+最后，URLSpec可能有一个名称，这将允许它与它一起使用 RequestHandler.reverse_url.
+
+settings
+传递给构造函数的附加关键字参数保存在settings字典中，并在文档中通常称为“应用程序设置”。
+设置用于定制Tornado的各个方面（尽管在某些情况下，通过覆盖子类中的方法可以进行更丰富的定制RequestHandler）。
+一些应用程序也喜欢使用settings字典作为在不使用全局变量的情况下使应用程序特定的设置可用于处理程序的一种方式。龙卷风中使用的设置如下所述。
+
+常规设置：
+
+autoreload：如果True在任何源文件更改时，服务器进程将重新启动，如调试模式和自动重新加载所述。
+这个选项在Tornado 3.2中是新的; 以前此功能由debug设置控制。
+debug：在调试模式和自动重新加载过程中描述的几种调试模式设置的速记。
+设置debug=True相当于autoreload=True，compiled_template_cache=False， static_hash_cache=False，serve_traceback=True。
+default_handler_class并且default_handler_args：如果没有找到其他匹配，将使用此处理程序; 使用它来实现自定义404页面（新增在Tornado 3.2中）。
+compress_response：如果True，文本格式的响应将被自动压缩。新龙卷风4.0。
+gzip：compress_response自从Tornado 4.0以来，已弃用的别名。
+log_function：在每次请求结束时调用此函数来记录结果（一个参数， RequestHandler对象）。
+默认实现写入logging模块的根记录器。也可以通过覆盖来定制Application.log_request。
+serve_traceback：如果为true，默认错误页面将包含错误的追溯。这个选项在Tornado 3.2中是新的; 以前此功能由debug设置控制。
+ui_modules和ui_methods：可以设置为UIModule使模板可用的映射或UI方法。可以设置为模块，字典或模块和/或列表的列表。有关详细信息，请参阅UI模块。
+websocket_ping_interval：如果设置为一个数字，则每n秒钟将ping一次所有Websockets。
+这可以帮助通过某些关闭空闲连接的代理服务器来保持连接，并且可以检测到websocket是否在没有正确关闭的情况下发生故障。
+websocket_ping_timeout：如果ping间隔设置，并且服务器在这么多秒内没有收到'乒乓'，它将关闭websocket。
+默认值是ping间隔的三倍，最少为30秒。如果Ping间隔未设置，则忽略。
+认证和安全设置：
+
+cookie_secret：用于RequestHandler.get_secure_cookie 和set_secure_cookie签署cookies。
+key_version：set_secure_cookie 当cookie_secret 一个关键字典时，由requestHandler 用于使用特定键来签署cookies 。
+login_url：authenticated如果用户未登录，装饰器将重定向到此URL，可以通过覆盖进一步定制RequestHandler.get_login_url
+xsrf_cookies：如果为true，将启用跨站点请求伪造保护。
+xsrf_cookie_version：控制此服务器生成的新XSRF Coo​​kie的版本。通常应保持默认值（始终为最高支持版本），但在版本转换期间可能会临时设置为较低值。
+新的龙卷风3.2.2，介绍了XSRF的cookie版本2。
+xsrf_cookie_kwargs：可以设置为要传递给RequestHandler.set_cookie XSRF cookie 的附加参数的字典。
+twitter_consumer_key，twitter_consumer_secret， friendfeed_consumer_key，friendfeed_consumer_secret，
+google_consumer_key，google_consumer_secret， facebook_api_key，facebook_secret：所用的 tornado.auth模块来验证各种API。
+模板设置：
+
+autoescape：控制自动转义模板。可以设置为None禁用转义，或者设置 所有输出应该被传递的函数的名称。默认为"xhtml_escape"。
+可以使用指令在每个模板的基础上进行更改。{% autoescape %}
+compiled_template_cache：默认是True; 如果False 每个请求都将重新编译模板。这个选项在Tornado 3.2中是新的; 以前此功能由debug设置控制。
+template_path：包含模板文件的目录。可以通过覆盖进一步定制RequestHandler.get_template_path
+template_loader：分配给tornado.template.BaseLoader自定义模板加载的实例 。如果使用此设置，template_path并autoescape 忽略设置。
+可以通过覆盖进一步定制 RequestHandler.create_template_loader。
+template_whitespace：控制模板中空白处理; 查看tornado.template.filter_whitespace允许的值。新龙卷风4.3。
+静态文件设置：
+
+static_hash_cache：默认是True; 如果False 每个请求都会重新计算静态网址。这个选项在Tornado 3.2中是新的; 以前此功能由debug设置控制。
+static_path：将从其中提供静态文件的目录。
+static_url_prefix：静态文件的网址前缀，默认为"/static/"。
+static_handler_class，static_handler_args：可以设置为静态文件而不是默认使用不同的处理程序 tornado.web.StaticFileHandler。 
+static_handler_args如果设置，应该是要传递给处理程序的initialize方法的关键字参数的字典。
