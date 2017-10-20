@@ -713,7 +713,7 @@ class MainHandler(tornado.web.RequestHandler):
 # {% autoescape None %}指明，或是使用一个单独的表达式{% raw ...%} 替换 {% .. %}.
 # 此外，在这些设置的每一处可以使用可替代的转义函数名来代替None.(翻译的应该没错，不明白什么意思)
 
-# 注意Tornado的自动转义在回避XSS跨站攻击脚本时是非常有用的, 它不足以用于所有情况. 
+# 注意Tornado的自动转义在回避 XSS跨站攻击脚本时是非常有用的, 它不足以用于所有情况. 
 # 表达式出现在某些位置如Javascript或CSS中，可能需要附加转义. 此外也要注意必须在HTML的属性内容中不可信的内容处一直使用双引号和 
 # xhtml_escape, 或是使用一个单独的转义函数来代替这些方法. 可查看示例 http://wonko.com/post/html-escaping.
 
@@ -746,4 +746,126 @@ _("A person liked this", "%(num)d people liked this", len(people)) % {"num": len
 	</body>
 </html>
 
+# 默认使用从用户浏览器发送的 Accept-Language 头检测用户的区域. 如果找不到一个合适的Accept-Language值则选择en_US.
+# 如果你让用户的设置作为他们区域的优先选择，你可以通过覆写 RequestHandler.get_user_locale 以覆盖默认区域选项.
+class BaseHandler(tornado.web.RequestHandler):
+	def get_current_user(self):
+		user_id = self.get_secure_cookie('user')
+		if not user_id: return None
+		return self.backend.get_user_by_id(user_id)
 
+	def get_user_locale(self):
+		if 'locale' not in self.current_user.prefs:
+			# Use the Accept-Language header
+			return None
+		return self.current_user.prefs['locale']
+
+# 如果 get_user_locale 返回None，我们转而依靠Accept-Language来实现.
+
+# tornado.locale 模块支持两种形式加载翻译： .mo 形式使用 gettext 和与之相关的工具，另一个是简单的 .csv 形式.
+# 一个application通常在启动时调用 tornado.loacle.load_translations 或 tornado.locale.load_gettext_translations二者中的一个,
+# 查看这些方法得到所支持格式的更多细节.
+
+# 你可以在你的application中使用 tornado.locale.get_supported_locales() 得到支持的区域列表. 
+# 用户的区域被选择为匹配到的与所支持的区域的最接近的. 例如，如果用户的区域是 es_GT，并支持 es 区域，self.locale 的请求就会是 es.
+# 如果匹配没被找到，则使用 en_US.
+
+
+# UI 模块
+# Tornado 支持 UI模块，这使在你的应用中支持标准、可重用的UI工具变得容易. 
+# UI模块像是提交你的页面组件的特殊函数调用，他们能将自身的 CSS 和 JS代码一同打包. 
+
+# 例如，如果你正在实现一个博客，而且你想你的博客条目出现在你的博客主页和每个博客条目页，你可以写一个条目模块来在每一个页面提交.
+# 首先，为你的 UI模块创建一个 Python模块，例如:
+# uimodules.py
+class Entry(tornado.web.UIModules):
+	def render(self, entry, show_comments=False):
+		return self.render_string('module-entry.html', entry=entry, show_comments=show_comments)
+
+# 告诉 Tornado 去使用 uimodules.py, 使用 ui_modules 在你的application中设置.
+from .import uimodules
+
+class HomeHandler(tornado.web.RequestHandler):
+	def get(self):
+		entries =self.db.query("SELECT * FROM entries ORDER BY date DESC")
+		self.render("home.html", entries=entries)
+
+class EntryHandler(tornado.web.RequestHandler):
+	def get(self, entry_id):
+		entry = self.db.get("SELECT * FROM entries WHERE id = %s", entry_id)
+		if not entry: raise tornado.web.HTTPError(404)
+		self.render("entry.html", entry=entry)
+
+settings = {
+	"ui_modules": uimodules,
+}
+application = tornado.web.Application([
+	(r'/', HomeHandler),
+	(r'/entry/([0-9]+)', EntryHandler),
+	], **settings)
+
+# 在一个模板中，你可以以 {% module %} 调用一个模块. 例如，你可以从 home.html 中调用 Entry 模块：
+{% for entry in entries %}
+	{% module Entry(entry) %}
+{% end %}
+
+# 或是从entry.html中调用：
+{% module Entry(entry, show_comments=True) %}
+
+# 模块可以通过覆写 embedded_css, embeded_javascript, javascript_files或 css_files方法 来定制 CSS 和 JS函数：
+class Entry(tornado.web.UIModules):
+	def embedded_css(self):
+		return '.entry { margin-bottom: 1em; }'
+
+	def render(self, entry, show_comments=False):
+		return self.render_string('module-entry.html', show_comments=show_comments)
+
+# 在一个页面上无论一个模块被使用多少次，CSS 和 JS 模块只被 include(插入??) 一次. CSS 总是在页面的 <head> 部分被 include，
+# JS总是在页面底部的 </body>标签前被include.
+
+# 当不需要附加的 Python代码时，一个模板文件本身可以被用作一个模块. 例如，前面的例子可以被改写为在module-entry.html中放入下面代码：
+{{ set_resources(embedded_css=".entry { margin-bottom: 1em; }") }}
+' <!-- more template... --> # 此行为html注释'
+
+# 这个修改过的模板模块将被调用
+{% module Template("module-entry.html", show_comments=True) %}
+
+# set_resources 函数仅在模板通过 {% module Template(...) %} 调用时才可获得. 不同于 {% include ... %}指令，
+# 模板模块有一个来自它们的包含模板的特有命名空间，----它们仅仅能看到局部模板命名空间和它们自己的参数.
+
+
+
+
+# 安全认证
+# cookie 和 secure cookie
+
+# 你可以使用 set_cookie 方法在用户的浏览器设置 cookies：
+class MainHandler(tornado.web.RequestHandler):
+	def get(self):
+		if not self.get_cookie('mycookie'):
+			self.set_cookie('mycookie', 'myvalue')
+			self.write('Your cookie was not set yet!')
+		else:
+			self.write('Your cookie was set!')
+
+# Cookies 是非常不安全的，可以被客户端随意修改. 如果你需要设置 cookie，例如确定当前登陆用户，你需要签署你的cookies 以避免被伪造.
+# Tornado 支持以 set_secure_cookie 和 get_secure_cookie 方法签名cookie. 使用这些方法，你需要在你创建你的应用时指定一个
+# 名为 cookie_secret的密钥. 你可以在application 中设置关键字参数来到你的应用：
+application = tornado.web.Application([
+	(r'/', MainHandler),
+	], cookie_secret="__TODO:_GENERATE_YOUR_OWN_RANDOM_VALUE_HERE___") 
+
+# 对cookie签名包括添加cookie的编码值、时间戳和一个哈希信息验证码(HMAC)签名. 如果cookie过期或是签名不匹配，get_secure_cookie 
+# 会返回 None，就像cookie 没有被设置时一样. 上面例子的安全版本：
+class MainHandler(tornado.web.RequestHandler):
+	def get(self):
+		if not self.get_secure_cookie('mycookie'):
+			self.set_secure_cookie('mycookie', 'myvalue')
+			self.write("Your cookie was not set yet!")
+		else:
+			self.write("Your cookie was set!")
+
+# Tornado 的安全签名确保完整却不保密. 就是说，cookie不能被修改，但是它的内容可以被用户识别. cookie_secret 是一个对称密钥，
+# 必须被保密. 任何得到钥匙的人都可以创作他们自己签字的cookie. 
+
+# 默认情况下，Tornado
