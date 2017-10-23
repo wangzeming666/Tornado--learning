@@ -1,5 +1,39 @@
 # TornadoLearn.py
 
+# Tornado 可以被分为以下四个主要部分:
+
+# Web 框架 (包括用来创建 Web 应用程序的 RequestHandler 类, 还有很多其它支持的类).
+# HTTP 客户端和服务器的实现 (HTTPServer 和 AsyncHTTPClient).
+# 异步网络库 (IOLoop 和 IOStream), 对 HTTP 的实现提供构建模块, 还可以用来实现其他协议.
+# 协程库 (tornado.gen) 让用户通过更直接的方法来实现异步编程, 而不是通过回调的方式.
+# Tornado web 框架和 HTTP 服务器提供了一整套 WSGI 的方案. 可以让Tornado编写的Web框架运行在一个WSGI容器中 (WSGIAdapter), 
+# 或者使用 Tornado HTTP 服务器作为一个WSGI容器 (WSGIContainer), 这两种解决方案都有各自的局限性, 
+# 为了充分享受Tornado为您带来的特性,你需要同时使用 Tornado的web框架和HTTP服务器.
+
+
+# 阻塞
+
+# 一个函数通常在它等待返回值的时候被 阻塞 .一个函数被阻塞可能由于很多原因: 网络I/O,磁盘I/O,互斥锁等等.
+# 事实上, 每一个 函数都会被阻塞,只是时间会比较短而已, 当一个函数运行时并且占用CPU(举一个极端的例子来说明为什么CPU阻塞的时间
+# 必须考虑在内, 考虑以下密码散列函数像 bcrypt, 这个函数需要占据几百毫秒的CPU时间, 远远超过了通常对于网络和磁盘请求的时间).
+
+# 一个函数可以在某些方面阻塞而在其他方面不阻塞.举例来说, tornado.httpclient 在默认设置下将阻塞与DNS解析,但是在其它网络请求时
+# 不会阻塞 (为了减轻这种影响,可以用 ThreadedResolver 或通过正确配置 libcurl 使用 tornado.curl_httpclient ). 
+# 在Tornado的上下文中我们通常讨论网络I/O上下文阻塞,虽然各种阻塞已经被最小化了.
+
+# 异步
+
+# 一个 异步 函数在它结束前就已经返回了,而且通常会在程序中触发一些动作然后在后台执行一些任务. (和正常的 同步 函数相比, 
+# 同步函数在返回之前做完了所有的事). 这里有几种类型的异步接口:
+
+# 回调函数
+# 返回一个占位符 (Future, Promise, Deferred)
+# 传送一个队列
+# 回调注册 (例如. POSIX 信号)
+# 不论使用哪一种类型的接口, 依据定义 异步函数与他们的调用者有不同的交互方式; 但没有一种对调用者透明的方式可以将同步函数
+# 变成异步函数 (像 gevent 通过一种轻量的线程库来提供异步系统,但是实际上它并不能让事情变得异步)
+
+
 # 同步函数示例
 from tornado.httpclient import HTTPClient 
 
@@ -31,6 +65,11 @@ def async_fetch_future(url):
 	return my_future
 
 
+# 原始的 Future 版本十分复杂, 但是 Futures 是 Tornado 中推荐使用的一种做法, 因为它有两个主要的优势. 错误处理时通过 
+# Future.result 函数可以简单的抛出一个异常 (不同于某些传统的基于回调方式接口的 一对一的错误处理方式), 而且 Futures 
+# 对于携程兼容的很好. 协程将会在本篇的下一节 详细讨论. 这里有一个协程版本的实力函数, 这与传统的同步版本十分相似.
+
+
 # 协程示例
 from tornado import gen
 @gen.coroutine
@@ -40,6 +79,13 @@ def fetch_coroutine(url):
 	# 在Python3.3之前的版本中，从生成器函数返回一个只是不允许的
 	# 必须用raise gen.return(response.body)来代替
 	# coroutines  英[kəraʊ'ti:nz]
+
+# 语句 raise gen.Return(response.body) 在 Python 2 中是人为设定的, 因为生成器不允许又返回值. 为了克服这个问题, 
+# Tornado 协程抛出了一个叫做 Return 的特殊异常. 协程将会像返回一个值一样处理这个异常.在 Python 3.3+ 中, return response.body 
+# 将会达到同样的效果.
+
+
+
 
 
 # Python 3.5引入了 async 和 await 关键字，所以
@@ -868,4 +914,356 @@ class MainHandler(tornado.web.RequestHandler):
 # Tornado 的安全签名确保完整却不保密. 就是说，cookie不能被修改，但是它的内容可以被用户识别. cookie_secret 是一个对称密钥，
 # 必须被保密. 任何得到钥匙的人都可以创作他们自己签字的cookie. 
 
-# 默认情况下，Tornado
+# 默认情况下，Tornado的安全签名在30天后过期. 改变这个，使用expires_days 关键字参数给 set_secure_cookie 和 
+# max_age_days 参数给get_secure_cookie. 这两个值是分开被传递的，这样在大多数情况下你可能会得到一个30天有效的签名,
+# 但是在某些敏感情况(例如改变账单信息)你可以在读取 cookie时使用一个更少的 max_age_days. 
+
+# Tornado也支持多个签名密钥启用签名密钥轮换. cookie_secret 这时必须是一个以整数密钥作为密钥版本的字典. 
+# 当前使用的签名密钥这时必须被以 key_version 应用设置，如果正确的密钥版本在cookie中被设置，允许字典中所有其它的密钥签署签名生效.
+# 为实现cookie的更新, 当前的签名密钥版本可以通过get_secure_cookie_key_version 质询.
+
+
+# 用户认证
+
+# 当前的认证用户可以在每个request请求中以 self.current_user获得，在每个模板中使用 current_user获得. 
+# 默认情况下，current_user为 None. 
+
+# 为了在应用程序中实现用户身份验证，你需要在你的request handler 中覆写 get_current_user() 方法来确定当前的用户基础，如cookie值
+# 这是一个例子，让用户以指定一个昵称的简单方式登录应用，然后保存在 cookie中:
+class BaseHandler(tornado.web.RequestHandler):
+	def get_current_user(self):
+		return self.get_secure_cookie('user')
+
+class MainHandler(BaseHandler):
+	def get(self):
+		if not self.current_user:
+			self.redirect('/login')
+			return
+		name = tornado.escape.xhtml_escape(self.current_user)
+		self.write("Hello, " + name)
+class LoginHandler(BaseHandler):
+	def get(self):
+		self.write('<html><body><form action="/login" method=post>'
+			 	   'Name: <input type="text" name="name">'
+			 	   '<input type="submit" value="Sign in>'
+			 	   '</form></body></html>')	
+
+	def post(self):
+		self.set_secure_cookie("user", self.get_argument("name"))
+		self.redirect("/")
+
+application = tornado.web.Application([
+	(r'/', MainHandler),
+	(r'/login', LoginHandler),
+	], cookie_secret="__TODO:_GENERATE_YOUR_OWN_RANDOM_VALUE_HERE__")
+
+# 你可以请求使用Python装饰器 tornado.web.authenticated 登录用户. 如果使用这个装饰器请求一个方法，而且
+# 用户没有登陆，它们会被重定向到 longin_url(另一个application setting). 上面的例子可以被改写：
+class MainHandler(BaseHandler):
+	@tornado.web.authenticated
+	def get(self):
+		name = tornado.escape.xhtml_escape(self.current_user)
+		self.write('hello, ' + name)
+settings = {
+	"cookie_secret": "__TODO:_GENERATE_YOUR_OWN_RANDOM_VALUE_HERE__"
+	"login_url": "/login",
+	}
+application = tornado.web.Application([
+	(r'/', MainHandler),
+	(r'/login', LoginHandler),
+	], **settings)
+
+# 如果你以authenticated 装饰器装饰 post()方法，而用户没有登陆，服务器会发送一个403响应. @authenticated装饰器
+# 是 if not self.current_user: self.redirect() 的简单速记版，它可能不适合非浏览器基础的登录方案.
+
+# 查看Tornado博客应用完整示例，它使用authentication(数据存储在MySQL数据库).
+
+
+# 第三方认证
+
+# tornado.auth 模块实现大量最受欢迎的web网站的认证和授权协议，包括Google/Gmail，Facebook，Twitter，FriendFeed
+# 模块包含了通过这些网站登录用户的方法，使用这些应用和方法授权进入服务器，因此你可以在它们的支持下做出例如下载用户地址录或是
+# 发布一个Twitter信息.
+
+# 这是一个handler示例，它使用Google的认证，在cookie中保存Google的整数以便后续使用:
+class GoogleAuth2LoginHandler(tornado.web.RequestHandler, tornado.auth.GoogleOAuth2Mixin):
+	@tornado.gen.coroutine
+	def get(self):
+		if self.get_argument('code', False):
+			user = yield self.get_authenticated_user(
+				redirect_uri='http://your.site.com/auth/google',
+				code=self.get_argument('code'))
+			# Save the user with e.g. set_secure_cookie
+		else:
+			yield self.authorize_redirect(
+				redirect_uri='http://your.site.com/auth/google',
+				client_id=self.settings['google_oauth']['key'],
+				scope=['profile', 'email'],
+				response_type='code',
+				extra_params={'approval_prompt': 'auto'})
+
+# 查看tornado.auth 模块文档获取更多细节.
+
+
+# 跨站请求伪造防护
+
+# 跨站请求伪造，或缩写XSRF，是一个常见的个人web应用问题. 查看wiki了解XSRF如何工作. 
+# 公认的解决方案，以防止XSRF的办法是为每个用户签署不可预知的值，并在每个表单中将值作为一个额外的参数提交在
+# 你的网站上. 如果cookie 和值在表单中的提交不匹配，那么请求有可能被伪造了.
+
+# Tornado 内置了XSRF防护，在application setting中插入 xsrf_cookies, 即可在网站中应用.
+settings = {
+	"cookie_secret": "__TODO:_GENERATE_YOUR_OWN_RANDOM_VALUE_HERE__",
+	"login_url":"/login",
+	"xsrf_cookies":True,
+}
+application = tornado.web.Application([
+	(r'/', MainHandler),
+	(r'/login', LoginHandler),
+	], **settings)
+
+# 如果xsrf_cookies被设置，Tornado web应用会设置 _xsrf cookie 给所有的用户，如果请求没有包含一个正确的 _xsrf值，
+# 服务器会拒绝所有 POSR，PUT和 DELETE请求. 如果你将这个设置打开，你需要通过 POST在提交中包含这个字段提交所有的表单
+# 你可以使用特殊的 UIModule xsrf_form_html() 完成这件事，可在所有的模板中找到：
+<form action="/new_message" method="post">
+	{% module xsrf_form_html() %}
+	<input type="text" name="message"/>
+	<input type="submit" value="Post"/>
+<form>
+
+# 如果你提交 AJAX POST 请求，你同样需要在每次请求中为你的JS 中插入 _xsrf 值. 这是一个在FriendFeed中通过AJAX
+# POST 方法来自动添加 _xsrf 值的 JQuery函数:
+function getCookie(name) {
+	var r = document.cookie.math("\\b" + name + "=([^;]*)\\b");
+	return r ? r[1] : undefined;
+}
+jQuery.postJSON = function(url, args, callback) {
+	args._xsrf = getCookie("_xsrf");
+	$.ajax({url: url, data: $.param(args), dataType: "text", type: "POST",
+		success: function(response) {
+		callback(eval("(" + response + ")"));
+		}});
+};
+
+# 对于 PUT 和 DELETE 请求(以及没有使用表单编码参数的POST请求), XSRF携带也可以通过一个名为 X-XSRFToken的
+# HTTP header被传递. XSRF cookie 通常在 xsrf_form_html 被使用时设置，但是在纯JS 应用中没有使用任何规则的
+# 表单，你可能需要通过 self.xsrf_token 手动设置(仅需要读取这个属性就能使设置生效).
+# 如果你需要在一个基本控制器中 (a per-handler-basis) 自定义 XSRF 的行为，你可以覆写 
+# RequestHandler.check_xsrf_cookie(). 例如，如果你有一个没有使用签名的证书，你可能想令 check_xsrf_cookie()
+# 不做任何事，来关闭XSRF防御. 然而，如果你同时支持cookie 和 不基于cookie的证书，这时对以cookie认证
+# 的当前请求使用XSRF防御是非常重要的.
+
+
+
+# 运行和部署
+
+# 自从Tornado提供了自己的HTTPServer，运行和部署就与Python web 框架有了一点不同. 你需要写一个main()函数来
+# 启动服务器，不再配置WSGI.
+def main():
+	app = make_app()
+	app.listen(8888)
+	IOLoop.current().start()
+
+if __name__ == '__main__':
+	main()
+
+# 配置你的操作系统或是进程管理器去运行这个程序来开始服务. 请注意可能必须要为每个进程所打开文件的进行计数(来避免
+# 打开过多文件错误). 要增加这个限制(例如设置为50000)你可以使用ulimit命令，修改/etc/security/limits.conf 或
+# 在你的 supervisord 配置中设置mindfs. 
+
+
+# 进程和端口
+
+# 由于Python GIL(全局解释器锁)必须去运行多个进程以充分利用多核CPU性能.最有代表性的是在每一个CPU上都运行一个进程
+
+# Tornado包含一个内建多进程模式来一次启动多个进程. 这需要对标准main函数做一个轻微的修改：
+def main():
+	app = make_app()
+	server = tornado.httpserver.HTTPServer(app)
+	server.bind(8888)
+	server.start(0)  # forks one process per cpu
+	IOLoop.current().start()
+
+# 这是最简单的方法去开始多个进程，它们分享相同的端口，尽管这有一些限制. 首先，每个子进程会有他自己的IOLoop，
+# 这非常重要，没有任何对象可以在fork之前触碰全局IOLoop实例(间接也不行). 第二，这种模型中很难做到零宕机更新.
+# 最后，因为所有进程分享同一端口，单独监控它们变得更难.
+
+# 对于更复杂的部署，建议单独地开始进程，在不同的端口监听每一个进程. supervisord 的"process groups" future
+# 是一个整理它们的好方法. 当每个进程使用一个不同的端口，一个外部负载平衡例如HAProxy 或nginx 通常被用来给
+# 外部的访问者呈现一个单独的地址.
+
+# 运行在一个负载平衡后
+
+# 当在一个如nginx负载平衡后运行时，推荐传递 xhearders=True 给HTTPServer构造函数. 这将告诉Tornado使用比如
+# X-Real-IP 来取得用户的实际IP地址代替所有流通在归属于平衡器的IP地址.
+
+# 这时一份原始的nginx配置文件，它和我们在FriendFeed使用的在结构上相似. 它假设ngix 和Tornado servers 运行在
+# 同一个机器上，四个Tornado servers 运行在端口8000 - 8003：
+user nginx;
+worker_processes 1;
+
+error _log /var/log/nginx/error.log;
+pid /var/run/nginx.pid;
+
+events {
+	worker_connections 1024;
+	user epoll;
+}
+
+http {
+	# Enumerate all the Tornado servers here
+	upstream frontends {
+		server 127.0.0.1:8000;
+		server 127.0.0.1:8001;
+		server 127.0.0.1:8002;
+		server 127.0.0.1:8003;
+ 	}
+
+ 	include /etc/nginx/mime.types;
+ 	default_type application/octet-stream;
+
+ 	access_log /var/log/nginx/access.log;
+
+ 	keepalive_timeout 65;
+ 	proxy_read_timeout 200;
+ 	sendfile on;
+ 	tcp_nopush on;
+ 	tcp_nodelay on;
+ 	gzip on;
+ 	gzip_min_length 1000;
+ 	gzip_proxied any;
+ 	gzip_types text/plain text/html text/css text/xml 
+ 			   application/x-javascript application/xml 
+
+ 	# Only retry if there was a communication error, not a timeout
+ 	# on the Tornado server (to avoid propagationg "queries of death" to all frontends)
+ 	proxy_next_upstream error;
+
+ 	server {
+ 		listen 80;
+
+ 		# Allow file uploads
+ 		client_max_body_size 50M;
+
+ 			root /var/www;
+ 			if ($query_string) {
+ 				expires max;
+ 			}
+ 		}
+ 		location = /favicon.ico {
+ 			rewrite (.*) /static/favicon.ico;
+ 		}
+ 		location = /robots.txt {
+ 			rewrite (.*) /static/robots.txt;
+ 		}
+
+ 		location / {
+ 			proxy_pass_header Server;
+ 			proxy_set_header Host $http_host;
+ 			proxy_redirect off;
+ 			proxy_set_header X-Real-IP $remote_addr;
+ 			proxy_set_header X-Scheme $scheme;
+ 			proxy_pass http://frontends;
+ 		}
+ 	
+}
+
+
+# 静态文件和文件缓存
+# 你可以在你的Tornado application settings 中设置 static_path:
+settings = {
+	"static_path": os.path.join(os.path.dirname(__file__), "static"),
+	"cookie_secret": "__TODO:_GENERATE_YOUR_OWN_RANDOM_VALUE_HERE__",
+	"login_url": "/login",
+	"xsrf_cookies": True,
+}
+application = tornado.web.Application([
+	(r'/', MainHandler),
+	(r'/login', LoginHandler),
+	(r'/(apple-touch-icon\.png)', tornado.web.StaticFileHandler,
+		dict(path=settings['static_path'])),
+	], **settings)
+
+# 这个设置会自动地将每个以/static/开头的请求从静态目录提供，例如，http://localhost:8888/static/foo.png 会把foo.png
+# 从设定的静态目录提供. 我们也自动提供/robots.txt 和/favicon.ico 从静态目录(尽管它们没有以/static/作为前缀开始)
+
+# 在上面的设置中，我们明确的在staticFileHandler根目录下配置了Tornado 来提供appe-touch-icon.png(正则表达式捕获组
+# 必须告诉StaticFileHandler请求的文件；(recall)捕获组被作为方法参数传给handlers)
+# 你可以做相同的事来提供例如 sitemap.xml 于网站的根目录. 当然，你也可以通过在HTML中使用合适的<link/>避免伪装的
+# apple-touch-icon.png.
+
+# 为提高性能，在浏览器缓存静态资源通常是一个好主意，这样浏览器就不会发送不必要的 If-Modified-Since 或 Etag
+# 请求，这可能会阻塞页面的渲染. Tornado使用静态内容版本非常好的支持了这一点. 
+
+# 使用这一特点，在你的模板中使用 static_url 方法比在你的 HTML中写静态文件目录的 URL更好. 
+<html>
+	<head>
+		<title>FriendFeed - {{ _("Home") }}</title>
+	</head>
+	<body>
+		<div><img src="{{ static_url("images/logo.png") }}"/></div>  # 这里引号没有问题
+	</body>
+</html>
+
+# static_url() 方法会将相对路径转化为 URI(统一资源标识符)，看起来就像/static/images/logo.png?v=aae54.
+# v 参数是一个在logo.png中的hash(哈希)内容，它的存在确保 Tornado服务器发送缓存头(cache headers)到用户的浏览器，
+# 这会使浏览器无限期的缓存内容.
+
+# 由于 v 参数的值基于文件的内容，如果你修改了文件并重新启动你的服务器，它会开始发送一个新的 v 值，这样用户的浏览器
+# 会自动的匹配到新的文件. 如果文件的内容没有改变，浏览器会继续使用一个本地缓存副本而不是永远检查服务器上的更新，
+# 显著的提高了渲染的性能.
+
+# 在生产中，你可能想从一个更优等的静态文件服务器如nginx来提供你的静态文件. 你可以您可以配置(安装)大多数web服务器
+# 使用static_url()识别所选择的服务器版本标记,并相应地设置缓存头. 这是有用在FriendFeed的有关nginx的配置部分:
+location /static/ {
+	root /var/friendfeed/static;
+	if ($query_string) {
+		expires max;
+	}
+}
+
+
+# 调试模式和自动重载
+
+# 如果你在Application构造函数中传递debug=True，这个app会被运行在调试/开发模式中. 在这种模式下，提供了几种方便特性
+# 当开发被启动(每一项都可以作为独立的标记使用，如果两者都被指定，则独立标记取得优先级)：
+	# autoreload=True: app会等待任何源文件的改变并重加载它. 这减少了在开发过程中手动重启服务器的需要.然而一些失败
+		# (比如导入时的语法错误)还是会停止服务器的运行，调试模式无法恢复.
+	# compiled_template_cache=False: 模板会被缓存.
+	# static_hash_cache=False: 静态文件哈希(使用static_url方法)将不会被缓存.
+	# serve_traceback=True: 当一个RequestHandler中的错误没有被捕捉，一个包含堆栈跟踪的错误页面被生成.
+
+# 自动重载模块不兼容HTTPServer的多进程模式. 在自动重载模式下，你不能给 HTTPServer.start 除了 1 以外的参数.
+
+# 调试模式的自动重载特性可在一个单独的 tornado.autoreload 模块中找到. 结合这两点使用来提高额外的鲁棒性防止语法错误:
+# 设置 autoreload=True 在aap运行中检查改变，并以 python -m tornado.autoreload myserver.py 运行来捕捉任何语法错误
+# 或其他的启动错误.
+
+# 重载会失去任何命令行的操作参数(如-u)，这是因为重新运行Python使用 sys.executable和 sys.argv. 
+# 此外，修改这些变量会引发重载而表现出错误.
+
+# 在一些平台(包括Windows和MAC OSX 10.6以前)上，进程不能在同一个位置被更新，这样当代码改变，旧的服务器会退出，运行一个新的.
+# 这会在一些IDEs(集成开发环境)中混淆.
+
+
+# WSGI和Google App Engine
+
+# Tornado通常在WSGI容器外独立运行. 然而在某些环境中(例如Google App Engine)，只有WSGI被允许，应用不能运行他们自己的服务器.
+# 在这些情况下Tornado支持一个有限的操作模式，不支持异步操作，但允许Tornado的功能子集在一个仅WSGI的环境中.
+# 这个特性不允许在WSGI模式中包含协程、@asynchronous装饰器、AsyncHTTPClient、auth模块、WebSockets.
+
+# 你可以使用 tornado.wsgi.WSGIAdapter 转换一个Tornado Application到一个WSGI应用.
+# 在这个例子中，配置你的WSGI容器去寻找application对象：
+import tornado.web
+import tornado.wsgi
+
+class MainHandler(tornado.web.RequestHandler):
+	def get(self):
+		self.write("Hello, world")
+
+tornado_app = tornado.web.Application([
+	(r'/', MainHandler),
+	])
+application = tornado.wsgi.WSGIAdapter(tornado_app)
+
+# 查看appengine example applicaion 一个用Tornado建立的全功能的AppEngine app. 
