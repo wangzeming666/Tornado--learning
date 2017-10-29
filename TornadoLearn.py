@@ -76,7 +76,7 @@ from tornado import gen
 def fetch_coroutine(url):
 	http_client = AsyncHTTPClient()
 	response = yield http_client.fetch(url)
-	# 在Python3.3之前的版本中，从生成器函数返回一个只是不允许的
+	# 在Python3.3之前的版本中，从生成器函数返回一个值是不允许的
 	# 必须用raise gen.return(response.body)来代替
 	# coroutines  英[kəraʊ'ti:nz]
 
@@ -87,6 +87,130 @@ def fetch_coroutine(url):
 
 
 
+    	# Future 于Python文档中找到的部分相关内容(Future这一部分未亲自翻译，可能有误):
+    	# 17.4.4. Future Objects
+    	# Future类封装了可调用的异步执行。Future实例是由Executor.submit()创建的。
+    	# 
+    	# class concurrent.futures.Future
+    	# 封装一个可调用的异步执行。Future实例由Executor.submit()创建，不应直接创建，除非测试。
+    	# 
+    	# cancel()
+    	# Attempt to cancel the call. If the call is currently being executed and cannot be cancelled then the method will
+    	#  return False, otherwise the call will be cancelled and the method will return True.
+    	# 
+    	# cancelled()
+    	# Return True if the call was successfully cancelled.
+    	# 
+    	# running()
+    	# Return True if the call is currently being executed and cannot be cancelled.
+    	# 
+    	# done()
+    	# Return True if the call was successfully cancelled or finished running.
+    	# 
+    	# result(timeout=None)
+    	# Return the value returned by the call. If the call hasn’t yet completed then this method will wait up to
+    	#  timeout seconds. If the call hasn’t completed in timeout seconds, then a concurrent.futures.
+    	#  TimeoutError will be raised. timeout can be an int or float. If timeout is not specified or None, 
+    	#  there is no limit to the wait time.
+    	# 
+    	# If the future is cancelled before completing then CancelledError will be raised.
+    	# 
+    	# If the call raised, this method will raise the same exception.
+    	# 
+    	# exception(timeout=None)
+    	# Return the exception raised by the call. If the call hasn’t yet completed then this method will wait up 
+    	# to timeout seconds. If the call hasn’t completed in timeout seconds, then a concurrent.futures.
+    	# TimeoutError will be raised. timeout can be an int or float. If timeout is not specified or None, 
+    	# there is no limit to the wait time.
+    	# 
+    	# If the future is cancelled before completing then CancelledError will be raised.
+    	# 
+    	# If the call completed without raising, None is returned.
+    	# 
+    	# add_done_callback(fn)
+    	# Attaches the callable fn to the future. fn will be called, with the future as its only argument, 
+    	# when the future is cancelled or finishes running.
+    	# 
+    	# Added callables are called in the order that they were added and are always called in a thread belonging to 
+    	# the process that added them. If the callable raises an Exception subclass, it will be logged and ignored. 
+    	# If the callable raises a BaseException subclass, the behavior is undefined.
+    	# 
+    	# If the future has already completed or been cancelled, fn will be called immediately.
+    	# 
+    	# 以下Future方法适用于单元测试和Executor实施。
+    	# 
+    	# set_running_or_notify_cancel()
+    	# This method should only be called by Executor implementations before executing the work associated with 
+    	# the Future and by unit tests.
+    	# 
+    	# If the method returns False then the Future was cancelled, i.e. Future.cancel() was called and returned True. 
+    	# Any threads waiting on the Future completing (i.e. through as_completed() or wait()) will be woken up.
+    	# 
+    	# If the method returns True then the Future was not cancelled and has been put in the running state, i.e. calls to 
+    	# Future.running() will return True.
+    	# 
+    	# This method can only be called once and cannot be called after Future.set_result() or Future.set_exception() 
+    	# have been called.
+    	# 
+    	# set_result(result)
+    	# Sets the result of the work associated with the Future to result.
+    	# 
+    	# This method should only be used by Executor implementations and unit tests.
+    	# 
+    	# set_exception(exception)
+    	# Sets the result of the work associated with the Future to the Exception exception.
+    	# 
+    	# This method should only be used by Executor implementations and unit tests.
+    	
+    	# 17.4.4. Future Objects
+    	# Future类封装了可调用的异步执行。Future实例是由Executor.submit()创建的。
+    	# class concurrent.futures.Future
+    	# 封装一个可调用的异步执行。Future实例由Executor.submit()创建，不应直接创建，除非测试。
+    	# 其中的一个函数：
+    	# add_done_callback(fn)
+    	# 添加回调(fn)以便在future完成时运行. 在future被取消或结束运行时，fn将被调用，以future作为其唯一参数.
+    	# 被添加的可调用对象以它们被添加的顺序被调用，并总是在属于添加它们的进程的线程中被调用.如果调用对象抛出异常(exception)子类，
+    	# 它会被记录并忽略. 如果调用对象抛出BaseException子类，行为未被定义.
+    	# 如果future已经完成或被取消，fn会被立即调用.
+    	
+    	# 18.5.3.4. Future
+    	# class asyncio.Future(*, loop=None)
+    	# 此类别几乎与concurrent.futures.Future兼容。
+    	# 区别：
+    	# result()和exception()不需要超时参数,当 future 不再需要他们的时候,会抛出一个异常
+    	# 始终通过事件循环的call_soon_threadsafe()调用通过add_done_callback()注册的回调。
+    	# 此类与concurrent.futures包中的wait()和as_completed()函数不兼容。
+    	# 此类为not thread safe。
+    	# 其中有一些方法，这里列出一个上文涉及到的函数：
+    	# add_done_callback(fn)
+    	# 回调以一个单独的参数--future对象 被调用. 如果future在调用时已经完成，则使用call_soon()将回调列入计划表。
+    	# Use functools.partial to pass parameters to the callback。
+    	# 例如，fut.add_done_callback(functools.partial(print, "Future:", flush=True)) 将调用 print("Future:", fut, flush=True).
+    	
+    	# functools.partial(func, *args, **keywords)
+    	# 当调用像带有位置参数和关键字参数的函数调用时，该函数返回一个partial对象. 如果更多的参数被提供，则追加到位置参数.
+    	# 如果额外的关键字参数被提供，它们会延伸并覆盖关键字.大致等价于：
+    	def partial(func, *args, **keywords):
+    		def newfunc(*fargs, **fkeywords):
+    			newkeywords = keywords.copy()
+    			newkeywords.update(fkeywords)
+    			return func(*args, *fargs, **newkeywords)
+    		newfunc.func = func
+    		newfunc.args = args
+    		newfunc.keywords = keywords
+    		return newfunc
+    	
+    	# partial()用于部分函数应用程序，其“冻结”函数的参数和/或关键字的某些部分，从而产生具有简化声明的新对象。
+    	# 例如，partial()可用于创建一个类似于int()函数的可调用，其中base参数默认为两个：
+    	>>>
+    	>>> from functools import partial
+    	>>> basetwo = partial(int, base=2)
+    	>>> basetwo.__doc__ = 'Convert base 2 string to an int.'
+    	>>> basetwo('10010')
+    	18
+    	
+    	
+    	
 
 # Python 3.5引入了 async 和 await 关键字，所以
 # 在tornado中可使用async和await关键字来代替yield，
@@ -1023,7 +1147,7 @@ application = tornado.web.Application([
 	], **settings)
 
 # 如果xsrf_cookies被设置，Tornado web应用会设置 _xsrf cookie 给所有的用户，如果请求没有包含一个正确的 _xsrf值，
-# 服务器会拒绝所有 POSR，PUT和 DELETE请求. 如果你将这个设置打开，你需要通过 POST在提交中包含这个字段提交所有的表单
+# 服务器会拒绝所有 POST，PUT和 DELETE请求. 如果你将这个设置打开，你需要通过 POST在提交中包含这个字段提交所有的表单
 # 你可以使用特殊的 UIModule xsrf_form_html() 完成这件事，可在所有的模板中找到：
 <form action="/new_message" method="post">
 	{% module xsrf_form_html() %}
