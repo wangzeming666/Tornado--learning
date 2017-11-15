@@ -1,0 +1,25 @@
+{'resultcode': '200', 
+
+'reason': 'SUCCESSED!', 
+
+
+
+'result': [
+
+{
+
+'data': 
+{'buyFive': '224000', 'buyFivePri': '7.860', 'buyFour': '420200', 'buyFourPri': '7.870', 'buyOne': '616500', 'buyOnePri': '7.900', 'buyThree': '447900', 'buyThreePri': '7.880', 'buyTwo': '344500', 'buyTwoPri': '7.890', 'competitivePri': '7.900', 'date': '2017-11-14', 'gid': 'sh601009', 'increPer': '-0.50', 'increase': '-0.040', 'name': '南京银行', 'nowPri': '7.900', 'reservePri': '7.910', 'sellFive': '250728', 'sellFivePri': '7.950', 'sellFour': '358340', 'sellFourPri': '7.940', 'sellOne': '132660', 'sellOnePri': '7.910', 'sellThree': '807750', 'sellThreePri': '7.930', 'sellTwo': '767920', 'sellTwoPri': '7.920', 'time': '10:45:05', 'todayMax': '7.960', 'todayMin': '7.900', 'todayStartPri': '7.920', 'traAmount': '124605845.000', 'traNumber': '157244', 'yestodEndPri': '7.940'}, 
+
+
+'dapandata': 
+{'dot': '7.900', 'name': '南京银行', 'nowPic': '-0.040', 'rate': '-0.50', 'traAmount': '12461', 'traNumber': '157244'}, 
+
+'gopicture': 
+{'minurl': 'http://image.sinajs.cn/newchart/min/n/sh601009.gif', 'dayurl': 'http://image.sinajs.cn/newchart/daily/n/sh601009.gif', 'weekurl': 'http://image.sinajs.cn/newchart/weekly/n/sh601009.gif', 'monthurl': 'http://image.sinajs.cn/newchart/monthly/n/sh601009.gif'}
+
+}
+
+]
+
+, 'error_code': 0}

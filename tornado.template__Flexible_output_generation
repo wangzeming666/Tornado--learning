@@ -1,0 +1,175 @@
+tornado.template__Flexible_output_generation
+
+一个简单的Python编译的模板系统
+
+基本使用像是这样：
+	t = template.Template("<html>{{ myvalue }}</html>")
+	print(t.generate(myvalue="XXX"))
+
+Loader是一个类，从根目录加载模板并缓存编译过的模板
+	loader = template.Loader("/home/btaylor")
+	print(loader.load('test.html').generate(myvalue="XXX"))
+
+我们编译所有的模板到原生的Python。错误报告是当前的...嗯，有趣。
+模板的语法：
+	### base.html
+	<html>
+		<head>
+			<title>{% block title %}Default title{% end %}</title>
+		</head>
+		<body>
+			<ul>
+				{% for student in students %}
+					{% block student %}
+					 <li>{{ escape(student.name) }}</li>
+					{% end %}
+				{% end %}
+			</ul>
+		</body>
+	</html>
+
+	### bold.html
+	{% extends "base.html" %}
+
+	{% block title %}A bolder title{% end %}
+
+	{% block student %}
+		<li><span style="bold">{{ escape(student.name) }}</span></li>
+	{% end %}
+
+不同于绝大多数其他的模板系统，我们不对你的语句中包含的表达式设置任何限制。
+if 和 for 语句块精确转换到Python，所以你可以做复杂的表达式如：
+	{% for student in [p for p in people if p.student and p.age > 23] %}
+		<li>{{ escape(student.name) }}</li>
+	{% end %}
+
+转换字典到Python意味着你可以容易的请求函数到表达式，像上面例子中的escape()函数.
+你可以传递函数到你的模板中就像任何其他的变量(In a RequestHandler, overrride RequestHandler.get_template_namespace):
+	### Python code
+	def add(x, y):
+		return x + y
+	template.execute(add=add)
+
+	### The template
+	{{ add(1, 2) }}
+
+我们默认提供函数escape(), url_escape(), json_encode(), and squeeze() 到所有的模板中。
+
+典型的应用不用手动创建Template或Loader实例，但取而代之的是使用tornado.web.RequestHandler的render和render_string方法，它基于template_path Application设置自动加载模板。
+
+以_tt_开始变量名的是模板系统的保留字段，不应使用。
+
+
+语法参考
+
+模板表达式被两个大括号环绕：{{ ... }}。内容可以是任何python表达式，它会根据当前的autoescape设置逃脱，并插入输出。其他的模板可能使用{% %}。
+
+注释掉一段以省略输出，用{# ... #}环绕它。
+
+如果你在输出中使用了{{, {%, or {#，这些标签可能被转义为{{!, {%!, 和 {#!。
+
+{% apply *function* %}...{% end %}
+在所有在apply和end之间的模板代码中输出一个函数：
+	{% apply linkify %}{{name}} said: {{message}}{% end %}
+值得注意的是，作为实现细节，应用块是作为嵌套函数实现的，因此可能与设置的变量非常不一致，或者在循环中使用{% break %} 或 {% continue %}.
+
+{% block *name* %}...{% end %}
+指明一个名字，被{% extends %}做块替换使用。父模板的块会被子模版中相同命名的块替换：
+	<!-- base.html -->
+	<title>{% block title %}Default title{% end %}</title>
+
+	<!-- mypage.html -->
+	{% extends "base.html" %}
+	{% block title %}My page title{% end %}
+
+{% comment ... %}
+一个注释会被从模板输出中移除。注意它没有{% end %}标签；注释从comment开始到%}结束。
+
+{% extend *filename* %}
+继承自另一个模板。使用extends的模板应包含一个或更多的block标签来从父模板中取代内容。子模板中没有在标签中填充任何内容的block会被忽略。示例查看{% block %}标签。
+
+{% for *var* in *expr* %}...{% end %}
+和python的for语句相同。{% break %}和{% continue %}可以在循环中被使用。
+
+{% from *x* import *y* %}
+与python import语句相同。
+
+{% if *condition* %}...{% elif *condition& %}..{% else %}...{% end %}
+不多赘述
+
+{% import *module* %}
+略
+
+{%include *filename* %}
+导入其它模板文件。导入文件可以看到所有的局部变量假如是直接复制到include指定的点({% autoescape %}是一个例外)。另外，{% module Template(filename, **kwargs) %}可以被用来以一个独立的命名空间导入其他模板。
+
+{% module *expr* %}
+渲染一个UIModel。UIModule的输出是不被转义的：
+	{% module Template("foo.html", arg=42) %}
+	UIModules是tornado.web.RequestHandler类的一个特性(特别是它的render方法)，仅模板系统被用在其他的环境中将不会工作。
+
+{% raw *expr* %}
+以不转义的形式输出给定表达式的结果。
+
+{% set *x* = *y* %}
+设置一个局部变量
+
+{% try %}...{% except %}...{% else %}...{% finally %}...{% end %}
+和python的try相同
+
+{% while *condition* %}...{% end %}
+python一样，可以使用{% continue %} 和 {% break %}
+
+{% whitespace *mode* %}
+为当前文件的剩余设置空白模式或直到下一个{% whitescape %}指令。查看 fileter_whitescape 可用的选项。
+Tornado 4.3新加入
+
+
+类参考
+
+class tornado.template.Template(template_string, name="<string>", loader=None, compress_whitescape=None, autoescape="xhtml_escape", whitespace="None")
+一个编译的模板。
+我们从给定的template_string编译入Python。你可以使用generate()从变量中生成模板。
+构造一个模板。
+	参数：	template_string(str) - 模板文件的内容
+			
+			name(str) - 加载的文件名(userd for error message)
+			
+			loader(tornado.template.BaseLoader) - BaseLoader 负责这个模板，被用来决定{% include %}和{% extend %}指令。
+
+			compress_whitespace(bool) - 自4.3废弃。相当于whitespace="single" if true and whitespace="all" if false.
+
+			autoescape(str) - 模板命名空间中的一个函数名，或None以关闭默认的转义。
+
+			whitespace(str) - 一个字符串指定空白处理；查看filter_whitespace获取选项。
+
+	在4.3版本改变：添加了whitespace参数
+
+reset()
+重新设定编译好模板的缓存。
+
+resolve_path(name, parent_path=None)
+转化一个可用的相对路径为绝对路径(内部使用)
+
+load(name, parent_path=None)
+加载模板。
+
+class tornado.template.Loader(root_directory, **kwargs)
+一个模板加载器，从一个单独的根目录加载。
+
+class tornado.template.DictLoader(dict, **kwargs)
+一个模板加载器，从一个目录加载。
+
+exception tornado.template.ParseError(message, filename=None, lineno=0)
+抛出一个模板语法异常
+ParseError实例有filename和lineno属性声明错误的位置。
+4.3版本改变：添加了filename和lineno属性。
+
+tornado.template.filter_whitespace(mode, text)
+根据模式转换文本中的空白。
+可选的模式：
+	all：返回所有未修改的空格。
+	single：消除连续的空格，只保留一个，保留换行。
+	oneline：消除所有连续空格，只留一个，在这个过程中去掉所有换行。
+4.3版本新增。
+

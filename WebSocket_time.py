@@ -49,7 +49,7 @@ def sendTime():
 	while True:
 		for key in clients.keys():
 			msg = str(datetime.datetime.now())
-			clients[key]["object"].write_message(msg) 
+			clients[key]["object"].write_message(msg)
 			print("write to client %s: %s" % (key, msg))
 		time.sleep(1)
 
