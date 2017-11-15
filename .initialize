@@ -1,0 +1,24 @@
+可以在Tornado的文档Request Handler部分找到详解
+简介如下
+
+
+RequestHandler.initialize()[source]
+Hook for subclass initialization. Called for each request.
+
+A dictionary passed as the third argument of a url spec will be supplied as keyword arguments to initialize().
+一个字典可以在路由映射中作为第三个参数以关键字传参的形式传给初始化函数initialize
+
+另外可以在路由映射中设置一个name，它可以提供正则匹配到的完整路径。
+
+Example:
+
+class ProfileHandler(RequestHandler):
+    def initialize(self, database):
+        self.database = database
+
+    def get(self, username):
+        ...
+
+app = Application([
+    (r'/user/(.*)', ProfileHandler, dict(database=database),name="urlname"),
+    ])
